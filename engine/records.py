@@ -115,7 +115,7 @@ def validate_game(rec) -> None:
     _check_ts(rec["ts"], "Game")
 
 
-def validate_fixture(turns: Iterable[dict], games: Iterable[dict] | None = None,
+def validate_fixture(turns: Iterable[dict], games: Iterable[dict] | dict | None = None,
                      win_rule: str = "majority") -> dict:
     """Structural checks over a set of Turn records (and optionally Game records).
 
@@ -127,6 +127,8 @@ def validate_fixture(turns: Iterable[dict], games: Iterable[dict] | None = None,
     turns = list(turns)
     games_by_id = {}
     if games is not None:
+        if isinstance(games, dict):
+            games = [games]
         for g in games:
             validate_game(g)
             games_by_id[g["game_id"]] = g
