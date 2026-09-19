@@ -78,3 +78,19 @@ mark.quote { background: var(--hot); color: var(--hot-ink); padding: 1px 2px; }
 .chip.nostatement { border-color: var(--fg-faint); color: var(--fg-dim); border-style: dashed; }
 
 .empty { padding: 60px 28px; color: var(--fg-dim); font-family: var(--mono); }
+
+/* ---- delayed reveal (instant, footprint preserved) ---- */
+.hdr .toggle {
+  background: none; border: 1px solid var(--fg-faint); color: var(--fg-dim); font-family: var(--mono);
+  font-size: 13px; letter-spacing: 0.06em; padding: 4px 10px; cursor: pointer;
+}
+.hdr .toggle.on { border-color: var(--cool); color: var(--cool); }
+.meta .gated.concealed { visibility: hidden; }
+.row .private { position: relative; }
+.row .private.concealed { cursor: pointer; }
+.row .private.concealed pre { visibility: hidden; }
+.row .private .veil {
+  position: absolute; inset: 26px 28px 30px; border: 1px dashed var(--cool-dim);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cool);
+}
