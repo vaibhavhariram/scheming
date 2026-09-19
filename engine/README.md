@@ -18,7 +18,9 @@ python3 -m engine.cli validate fixtures/turns.json research/out/scores.json rese
 `validate` accepts any mix of turns / games / scores / exploits files (kind detected from the
 key set; a file may be an array or a single object). Every record is checked against
 `CONTRACT.md` types exactly. With turns present, scores must join to an existing turn on
-`(game_id, round, player_id)` and be unique on it; exploits must name a known `game_id`
+`(game_id, round, player_id)` and be unique on it, and a `Score.quote` (optional, approved
+contract change `238a104`) must be null when `lied` is false and otherwise appear verbatim in
+that player's scratchpad for that day or an earlier one; exploits must name a known `game_id`
 (`round` 0 is allowed for game-level exploits and joins no turn). It never judges lies.
 Exit code 0 = valid, 1 = the first violation is printed.
 

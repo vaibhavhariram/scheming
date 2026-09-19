@@ -169,3 +169,32 @@ def test_cli_validate_mixed_files(tmp_path, capsys):
     sp.write_text(json.dumps([score(round=7)]))
     rc = main(["validate", str(ROOT / "fixtures" / "turns.json"), str(sp)])
     assert rc == 1 and "joins to no Turn" in capsys.readouterr().err
+
+
+def test_score_quote_optional_null_when_not_lied_and_verbatim():
+    turns = json.loads((ROOT / "fixtures" / "turns.json").read_text())
+    priv = next(t["private"] for t in turns if t["game_id"] == "g-20260919-fx0001" and t["round"] == 1 and t["player_id"] == "p1")
+    sentence = priv.split(". ")[0] + "."
+    validate_score(score(quote=sentence))
+    validate_score(score(lied=False, lie_kind=None, confidence=0.1, quote=None))
+    assert detect_kind(score(quote=sentence)) == "scores"
+    with pytest.raises(RecordError, match="null when lied is false"):
+        validate_score(score(lied=False, lie_kind=None, quote="x"))
+    with pytest.raises(RecordError, match="non-empty"):
+        validate_score(score(quote="   "))
+    with pytest.raises(RecordError, match="contract order"):
+        validate_score({"quote": sentence, **score()})
+    validate_collection("scores", [score(quote="  " + sentence.replace(" ", "  ") + " ")], turns=turns)
+    with pytest.raises(RecordError, match="not verbatim"):
+        validate_collection("scores", [score(quote="p3 and I are definitely not wolves.")], turns=turns)
+
+
+def test_lane_b_fixture_files_validate_against_ours():
+    turns = json.loads((ROOT / "fixtures" / "turns.json").read_text())
+    games = json.loads((ROOT / "fixtures" / "games.json").read_text())
+    scores_path = ROOT / "fixtures" / "scores.json"
+    exploits_path = ROOT / "fixtures" / "exploits.json"
+    if not scores_path.exists() or not exploits_path.exists():
+        pytest.skip("lane B fixtures not present")
+    validate_collection("scores", json.loads(scores_path.read_text()), turns=turns, games=games)
+    validate_collection("exploits", json.loads(exploits_path.read_text()), turns=turns, games=games)

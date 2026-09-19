@@ -14,6 +14,7 @@ TURN_KEYS = ("game_id", "round", "player_id", "model_name", "role", "private", "
 GAME_KEYS = ("game_id", "models", "roles", "winner", "rounds", "ts")
 # lane B's collections: validated here for shape only, never written by lane A
 SCORE_KEYS = ("game_id", "round", "player_id", "lied", "lie_kind", "confidence")
+SCORE_OPTIONAL_KEYS = ("quote",)  # contract change 238a104, approved: verbatim scratchpad sentence, null when lied is false
 EXPLOIT_KEYS = ("game_id", "round", "player_id", "tag", "description", "designed", "ts")
 LIE_KINDS = ("deflect", "false_claim", "omit")
 KINDS = {"turns": TURN_KEYS, "games": GAME_KEYS, "scores": SCORE_KEYS, "exploits": EXPLOIT_KEYS}
@@ -62,14 +63,15 @@ def build_game(*, game_id: str, models: list[str], roles: dict[str, str], winner
     return rec
 
 
-def _check_keys(rec, keys: tuple[str, ...], what: str) -> None:
+def _check_keys(rec, keys: tuple[str, ...], what: str, optional: tuple[str, ...] = ()) -> None:
     if not isinstance(rec, dict):
         raise RecordError(f"{what} must be an object, got {type(rec).__name__}")
     missing = [k for k in keys if k not in rec]
-    extra = [k for k in rec if k not in keys]
+    extra = [k for k in rec if k not in keys and k not in optional]
     if missing or extra:
         raise RecordError(f"{what} keys wrong: missing={missing} extra={extra}")
-    if list(rec.keys()) != list(keys):
+    expected = list(keys) + [k for k in optional if k in rec]
+    if list(rec.keys()) != expected:
         raise RecordError(f"{what} keys out of contract order: {list(rec.keys())}")
 
 
@@ -123,7 +125,7 @@ def validate_game(rec) -> None:
 
 
 def validate_score(rec) -> None:
-    _check_keys(rec, SCORE_KEYS, "Score")
+    _check_keys(rec, SCORE_KEYS, "Score", optional=SCORE_OPTIONAL_KEYS)
     if not isinstance(rec["game_id"], str) or not rec["game_id"]:
         raise RecordError("Score.game_id must be a non-empty string")
     if not isinstance(rec["round"], int) or isinstance(rec["round"], bool) or rec["round"] < 1:
@@ -137,6 +139,12 @@ def validate_score(rec) -> None:
     c = rec["confidence"]
     if isinstance(c, bool) or not isinstance(c, (int, float)) or not 0.0 <= c <= 1.0:
         raise RecordError(f"Score.confidence must be a number in [0.0, 1.0], got {c!r}")
+    if "quote" in rec:
+        q = rec["quote"]
+        if q is not None and (not isinstance(q, str) or not q.strip()):
+            raise RecordError(f"Score.quote must be null or a non-empty string, got {q!r}")
+        if q is not None and rec["lied"] is False:
+            raise RecordError("Score.quote must be null when lied is false")
 
 
 def validate_exploit(rec) -> None:
@@ -160,12 +168,13 @@ VALIDATORS = {"turns": validate_turn, "games": validate_game, "scores": validate
 
 
 def detect_kind(rec) -> str:
-    """Which contract collection a record belongs to, by its exact key set."""
+    """Which contract collection a record belongs to, by its key set (optional keys allowed)."""
     if not isinstance(rec, dict):
         raise RecordError(f"record must be an object, got {type(rec).__name__}")
     keys = set(rec)
     for kind, spec in KINDS.items():
-        if keys == set(spec):
+        optional = SCORE_OPTIONAL_KEYS if kind == "scores" else ()
+        if keys - set(optional) == set(spec):
             return kind
     raise RecordError(f"keys {sorted(keys)} match no contract collection; expected one of "
                       + ", ".join(f"{k}={list(v)}" for k, v in KINDS.items()))
@@ -191,8 +200,9 @@ def validate_collection(kind: str, records: Iterable[dict], *, turns: Iterable[d
     if kind not in VALIDATORS:
         raise RecordError(f"unknown collection {kind!r}")
     validator = VALIDATORS[kind]
-    turn_keys = {(t["game_id"], t["round"], t["player_id"]) for t in (turns or [])}
-    known_games = {t["game_id"] for t in (turns or [])} | {g["game_id"] for g in (games or [])}
+    turns = list(turns or [])
+    turn_keys = {(t["game_id"], t["round"], t["player_id"]) for t in turns}
+    known_games = {t["game_id"] for t in turns} | {g["game_id"] for g in (games or [])}
     seen = set()
     for rec in records:
         validator(rec)
@@ -203,6 +213,8 @@ def validate_collection(kind: str, records: Iterable[dict], *, turns: Iterable[d
             seen.add(key)
             if turn_keys and key not in turn_keys:
                 raise RecordError(f"Score {key} joins to no Turn")
+            if turn_keys and rec.get("quote"):
+                _check_quote_verbatim(rec, turns)
         if known_games and rec["game_id"] not in known_games:
             raise RecordError(f"{kind[:-1].capitalize()} references unknown game_id {rec['game_id']!r}")
     summary = {"kind": kind, "records": len(records), "game_ids": sorted({r["game_id"] for r in records})}
@@ -212,6 +224,22 @@ def validate_collection(kind: str, records: Iterable[dict], *, turns: Iterable[d
     if kind == "exploits":
         summary["undesigned"] = sum(1 for r in records if not r["designed"])
     return summary
+
+
+def _norm(text: str) -> str:
+    return " ".join(text.split())
+
+
+def _check_quote_verbatim(score: dict, turns: list[dict]) -> None:
+    """Score.quote must appear verbatim (whitespace-normalised) in this turn's private or in the
+    same player's private from an earlier day of the same game."""
+    candidates = [t["private"] for t in turns
+                  if t["game_id"] == score["game_id"] and t["player_id"] == score["player_id"]
+                  and t["round"] <= score["round"]]
+    q = _norm(score["quote"])
+    if not any(q in _norm(p) for p in candidates):
+        raise RecordError(f"Score.quote for ({score['game_id']}, {score['round']}, {score['player_id']}) "
+                          f"is not verbatim from that player's scratchpad: {score['quote'][:80]!r}")
 
 
 def validate_fixture(turns: Iterable[dict], games: Iterable[dict] | dict | None = None,
