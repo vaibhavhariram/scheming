@@ -8,17 +8,17 @@ keep it to one line per lane. delete old blocks, do not append a history.
 
 ---
 
-## hour 0 — 11:00am
+## hour 5 — 16:30
 
 ```
-A  engine/   game state machine, then fixtures/turns.json
-B  research/ waiting on fixtures. drafting entailment prompt.
-C  ui/       waiting on fixtures. shell + layout.
-D  voice/    PLUME PROJECT CREATED: [ ]   then elevenlabs voice setup
+A  engine/   live run + traps from design/rules.md, then ui alongside C
+B  research/ scorer on real turns → exploit detector → cost rollup
+C  ui/       split screen on real data (reassign if not typing by 16:40)
+D  voice/    PLUME CREATED: [ ]   then cold-open pick from real game, slides
 
-collision risk: none. fixtures are the only dependency. A ships by 12:00.
-blocked: B, C until 12:00
-cut so far: —
+collision risk: A entering ui/ — only after C formally reassigned, never both
+blocked: everything downstream of the api key
+cut so far: probe, deepgram
 ```
 
 ---
