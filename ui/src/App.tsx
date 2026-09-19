@@ -1,13 +1,14 @@
-/** Checkpoint 1: proof of load. Raw rows straight from source.ts + the join index. */
 import { useEffect, useState } from 'react'
-import { getExploits, getScores, getTurns, indexScores, joinRows, listGames, type Row } from './data/source'
-import type { Exploit, Game } from './data/types'
+import { getScores, getTurns, indexScores, joinRows, listGames, type Row } from './data/source'
+import type { Game } from './data/types'
+import { SplitScreen } from './views/SplitScreen'
 
 export default function App() {
   const [games, setGames] = useState<Game[]>([])
   const [gameId, setGameId] = useState<string | null>(null)
   const [rows, setRows] = useState<Row[]>([])
-  const [exploits, setExploits] = useState<Exploit[]>([])
+  const [round, setRound] = useState(1)
+  const [hideRoles, setHideRoles] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -17,66 +18,58 @@ export default function App() {
         setGameId(gs[0]?.game_id ?? null)
       })
       .catch((e) => setError(String(e)))
-    getExploits().then(setExploits).catch((e) => setError(String(e)))
   }, [])
 
   useEffect(() => {
     if (!gameId) return
+    setRows([])
     Promise.all([getTurns(gameId), getScores(gameId)])
-      .then(([turns, scores]) => setRows(joinRows(turns, indexScores(scores))))
+      .then(([turns, scores]) => {
+        setRows(joinRows(turns, indexScores(scores)))
+        setRound(1)
+      })
       .catch((e) => setError(String(e)))
   }, [gameId])
 
+  const maxRound = rows.reduce((m, r) => Math.max(m, r.turn.round), 1)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLSelectElement) return
+      if (e.key === 'ArrowRight') setRound((r) => Math.min(maxRound, r + 1))
+      if (e.key === 'ArrowLeft') setRound((r) => Math.max(1, r - 1))
+      if (e.key === 'h' || e.key === 'H') setHideRoles((h) => !h)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [maxRound])
+
   const game = games.find((g) => g.game_id === gameId)
+  const models = game ? Array.from(new Set(game.models)) : []
   return (
-    <div style={{ padding: 16 }}>
-      <h1 style={{ fontSize: 18, margin: '0 0 12px' }}>scheming — checkpoint 1: raw load</h1>
-      {error && <p className="hot">{error}</p>}
-      <p className="dim">
-        games: {games.length} · exploits: {exploits.length} ·{' '}
+    <>
+      <header className="hdr">
+        <span className="title">scheming</span>
         <select value={gameId ?? ''} onChange={(e) => setGameId(e.target.value)}>
           {games.map((g) => (
             <option key={g.game_id} value={g.game_id}>
-              {g.game_id} — {g.models[0]} — {g.winner} in {g.rounds}
+              {g.game_id}
             </option>
           ))}
         </select>
-      </p>
-      {game && (
-        <p className="mono dim">
-          roles {JSON.stringify(game.roles)} · models {JSON.stringify(game.models)} · ts {game.ts}
-        </p>
-      )}
-      <table>
-        <thead>
-          <tr>
-            <th>round</th><th>player</th><th>role</th><th>model</th><th>vote</th><th>score</th><th>private</th><th>public</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(({ turn, score }) => (
-            <tr key={`${turn.round}-${turn.player_id}`}>
-              <td>{turn.round}</td>
-              <td className="mono">{turn.player_id}</td>
-              <td>{turn.role}</td>
-              <td className="mono dim">{turn.model_name}</td>
-              <td className="mono">{turn.vote ?? '—'}</td>
-              <td className="mono">
-                {score === null ? (
-                  <span className="dim">unscored</span>
-                ) : (
-                  <span className={score.lied ? 'hot' : ''}>
-                    {score.lied ? `lied/${score.lie_kind}` : 'ok'} {score.confidence.toFixed(2)}
-                    {score.quote ? ` “${score.quote.slice(0, 40)}…”` : ''}
-                  </span>
-                )}
-              </td>
-              <td className="mono" style={{ maxWidth: 380 }}>{turn.private.slice(0, 160)}…</td>
-              <td style={{ maxWidth: 380 }}>{turn.public === '' ? <span className="hot">[ SILENT ]</span> : turn.public.slice(0, 160) + '…'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        <span>{models.join(' · ')}</span>
+        <span className="round">
+          round {round} <span className="dim">/ {game?.rounds ?? maxRound}</span>
+        </span>
+        {game && <span className="winner">{game.winner}</span>}
+        <span className="spacer" />
+        <span>
+          <kbd>←</kbd> <kbd>→</kbd> round · <kbd>H</kbd> roles
+        </span>
+      </header>
+      {error && <div className="empty hot">{error}</div>}
+      {!error && !rows.length && <div className="empty">loading…</div>}
+      {rows.length > 0 && <SplitScreen rows={rows} round={round} hideRoles={hideRoles} />}
+    </>
   )
 }

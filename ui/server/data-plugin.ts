@@ -2,8 +2,9 @@
  * Dev-server backend for src/data/source.ts. Read-only. Serves JSON that lane A (turns, games)
  * and lane B (scores, exploits) write to disk. Nothing here writes anything.
  *
- *   GET /data/index.json          -> [{ dir, game }]  every game.json under fixtures/live, runs,
- *                                    plus fixtures/games.json (fallback). live > runs > fixtures.
+ *   GET /data/index.json          -> [{ dir, game, files }]  every game.json under fixtures/live,
+ *                                    runs, plus fixtures/games.json (fallback). live > runs > fixtures.
+ *                                    `files` lists the json/jsonl present in that dir.
  *   GET /data/file/<relpath>      -> the file, if it is under an allowed root.
  *
  * A mongo backend replaces this plugin and source.ts's fetches; no component changes.
@@ -41,14 +42,16 @@ function gameDirs(): string[] {
   return out
 }
 
-function buildIndex(): Array<{ dir: string; game: unknown }> {
+function buildIndex(): Array<{ dir: string; game: unknown; files: string[] }> {
   const seen = new Set<string>()
-  const entries: Array<{ dir: string; game: unknown }> = []
+  const entries: Array<{ dir: string; game: unknown; files: string[] }> = []
   for (const dir of gameDirs()) {
-    const game = readJson(path.join(REPO_ROOT, dir, 'game.json')) as { game_id?: string } | null
+    const abs = path.join(REPO_ROOT, dir)
+    const game = readJson(path.join(abs, 'game.json')) as { game_id?: string } | null
     if (game?.game_id && !seen.has(game.game_id)) {
       seen.add(game.game_id)
-      entries.push({ dir, game })
+      const files = fs.readdirSync(abs).filter((f) => f.endsWith('.json') || f.endsWith('.jsonl'))
+      entries.push({ dir, game, files })
     }
   }
   const fallback = readJson(path.join(REPO_ROOT, 'fixtures/games.json'))
@@ -56,7 +59,7 @@ function buildIndex(): Array<{ dir: string; game: unknown }> {
     for (const game of fallback as Array<{ game_id?: string }>) {
       if (game?.game_id && !seen.has(game.game_id)) {
         seen.add(game.game_id)
-        entries.push({ dir: 'fixtures', game })
+        entries.push({ dir: 'fixtures', game, files: [] })
       }
     }
   }

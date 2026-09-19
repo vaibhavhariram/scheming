@@ -17,6 +17,8 @@ const BASE = '/data'
 interface IndexEntry {
   dir: string
   game: Game
+  /** json/jsonl files present in dir (empty for the fixtures fallback) */
+  files: string[]
 }
 
 let index: IndexEntry[] = []
@@ -82,7 +84,9 @@ export async function getTurns(gameId: string): Promise<Turn[]> {
     turns = (await fetchJsonArray<Turn>('fixtures/turns.json')).filter((t) => t.game_id === gameId)
   } else {
     // turns.jsonl is appended per turn while a game is running; turns.json is written at game end
-    turns = (await fetchJsonl<Turn>(`${entry.dir}/turns.jsonl`)) ?? (await fetchJsonArray<Turn>(`${entry.dir}/turns.json`))
+    turns = entry.files.includes('turns.jsonl')
+      ? ((await fetchJsonl<Turn>(`${entry.dir}/turns.jsonl`)) ?? [])
+      : await fetchJsonArray<Turn>(`${entry.dir}/turns.json`)
   }
   turns.forEach((t) => assertTurn(t, entry.dir))
   return turns.sort((a, b) => a.round - b.round || a.ts.localeCompare(b.ts))
@@ -91,8 +95,9 @@ export async function getTurns(gameId: string): Promise<Turn[]> {
 export async function getScores(gameId: string): Promise<Score[]> {
   if (!index.length) await fetchIndex()
   const entry = entryFor(gameId)
+  // primary: <game dir>/scores.json (agreed drop location for lane B); the other two are fallbacks
   const paths = [
-    ...(entry && entry.dir !== 'fixtures' ? [`${entry.dir}/scores.json`] : []),
+    ...(entry && entry.files.includes('scores.json') ? [`${entry.dir}/scores.json`] : []),
     'research/results/scores.json',
     'fixtures/scores.json',
   ]
@@ -115,7 +120,7 @@ export async function getExploits(): Promise<Exploit[]> {
   const paths = [
     'fixtures/exploits.json',
     'research/results/exploits.json',
-    ...index.filter((e) => e.dir !== 'fixtures').map((e) => `${e.dir}/exploits.json`),
+    ...index.filter((e) => e.files.includes('exploits.json')).map((e) => `${e.dir}/exploits.json`),
   ]
   const seen = new Set<string>()
   const out: Exploit[] = []
