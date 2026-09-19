@@ -8,3 +8,6 @@ node_modules/
 .next/
 .DS_Store
 research/results/raw/
+
+# engine output (see engine/README.md); real games are frozen under fixtures/live/
+runs/

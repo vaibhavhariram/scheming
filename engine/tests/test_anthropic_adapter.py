@@ -142,7 +142,7 @@ def test_cli_live_run_stops_before_the_game_without_a_key(tmp_path, monkeypatch,
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("ANTHROPIC_AUTH_TOKEN", raising=False)
     monkeypatch.setattr(anthropic, "Anthropic", lambda **kw: (_ for _ in ()).throw(TypeError("Could not resolve authentication method")))
-    rc = main(["run", "--models", "claude-opus-5", "--out", str(tmp_path / "runs")])
+    rc = main(["run", "--models", "claude-sonnet-5", "--out", str(tmp_path / "runs")])
     err = capsys.readouterr().err
     assert rc == 2 and "ANTHROPIC_API_KEY" in err
     assert not (tmp_path / "runs").exists()
