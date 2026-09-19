@@ -1,0 +1,13 @@
+{
+  "claude-opus-4-8": {
+    "calls": 13,
+    "turns": 9,
+    "retries": 0,
+    "parse_failures": 0,
+    "fallback_turns": 0,
+    "adapter_errors": 0,
+    "vote_missing": 0,
+    "vote_invalid": 0,
+    "kill_invalid": 0
+  }
+}
