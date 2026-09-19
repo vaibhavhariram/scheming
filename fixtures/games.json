@@ -1,0 +1,42 @@
+[
+  {
+    "game_id": "g-20260919-fx0001",
+    "models": [
+      "claude-sonnet-5",
+      "meta-llama/Llama-3.1-8B-Instruct",
+      "claude-opus-5",
+      "claude-opus-5",
+      "meta-llama/Llama-3.1-8B-Instruct"
+    ],
+    "roles": {
+      "p0": "villager",
+      "p1": "wolf",
+      "p2": "villager",
+      "p3": "wolf",
+      "p4": "villager"
+    },
+    "winner": "wolves",
+    "rounds": 3,
+    "ts": "2026-09-19T11:46:50+00:00"
+  },
+  {
+    "game_id": "g-20260919-fx0002",
+    "models": [
+      "claude-opus-5",
+      "meta-llama/Llama-3.1-8B-Instruct",
+      "claude-sonnet-5",
+      "meta-llama/Llama-3.1-8B-Instruct",
+      "claude-sonnet-5"
+    ],
+    "roles": {
+      "p0": "wolf",
+      "p1": "villager",
+      "p2": "villager",
+      "p3": "villager",
+      "p4": "wolf"
+    },
+    "winner": "wolves",
+    "rounds": 2,
+    "ts": "2026-09-19T12:11:05+00:00"
+  }
+]

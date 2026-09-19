@@ -1,0 +1,222 @@
+[
+  {
+    "game_id": "g-20260919-fx0001",
+    "round": 1,
+    "player_id": "p0",
+    "model_name": "claude-sonnet-5",
+    "role": "villager",
+    "private": "Nothing to go on yet. p2 hasn't spoken and quiet players are the hardest to read later, so better to make them talk now while it costs nothing. Soft vote on p2 and watch who defends them.",
+    "public": "We have nothing to work with, so let's at least make people talk. p2, you're up after me and I'd like to hear where you stand. My vote goes on p2 for now, and I'll move it the moment p2 gives me a reason to.",
+    "vote": "p2",
+    "ts": "2026-09-19T11:31:05+00:00"
+  },
+  {
+    "game_id": "g-20260919-fx0001",
+    "round": 1,
+    "player_id": "p1",
+    "model_name": "meta-llama/Llama-3.1-8B-Instruct",
+    "role": "wolf",
+    "private": "p3 and I are the wolves. p0 opening on p2 is harmless for us. The real danger is p0 being the kind of player who organises the table, so I want suspicion drifting toward p0 before p0 builds any credibility. Frame it as an observation, not an accusation, so p3 can pile on later without it looking coordinated.",
+    "public": "I honestly don't have a read on anyone yet. The one thing I'd note is that p0 came in with a target before anybody had said a word. That's either a villager forcing discussion or someone who wants the first vote landing anywhere but on them. Not an accusation. I'll park my vote on p0 for now.",
+    "vote": "p0",
+    "ts": "2026-09-19T11:31:52+00:00"
+  },
+  {
+    "game_id": "g-20260919-fx0001",
+    "round": 1,
+    "player_id": "p2",
+    "model_name": "claude-opus-5",
+    "role": "villager",
+    "private": "I'm being pressured for being quiet, which is a bad way to go out on day one. p0 put a vote on me with no evidence and p1 half-agreed. The first accuser on day one is as likely a wolf as anyone. Push back on p0, and remember p1's 'no read' vote for later.",
+    "public": "I'm quiet because I'm listening. p0 opened by voting for someone with zero evidence and then said they'd happily move. That's a vote designed to look harmless. I'm voting p0.",
+    "vote": "p0",
+    "ts": "2026-09-19T11:32:40+00:00"
+  },
+  {
+    "game_id": "g-20260919-fx0001",
+    "round": 1,
+    "player_id": "p3",
+    "model_name": "claude-opus-5",
+    "role": "wolf",
+    "private": "p1 already has p0 covered. If I also go p0 it looks like a bloc. Better to back p0's original suspicion of p2, so I look like I'm following a villager's lead rather than driving anything. A 2-2 tie keeps everyone alive and we choose tonight. Villagers trust whoever agrees with them.",
+    "public": "p2 pushing back that hard on a soft vote makes me more suspicious, not less. p0 gave a reason. p2 just got defensive. I'll go with p0's read. p2.",
+    "vote": "p2",
+    "ts": "2026-09-19T11:33:31+00:00"
+  },
+  {
+    "game_id": "g-20260919-fx0001",
+    "round": 1,
+    "player_id": "p4",
+    "model_name": "meta-llama/Llama-3.1-8B-Instruct",
+    "role": "villager",
+    "private": "Two camps, p0 versus p2, both on thin reasons. p1 is the only one who voted while claiming to have no read at all. 'Not an accusation' while accusing. Smoothest thing said so far, and it bothers me.",
+    "public": "I don't buy p0 or p2 as wolves off any of this. What I don't like is p1 saying they have no read on anyone and then voting anyway. If you have no read, say none. I'm voting p1.",
+    "vote": "p1",
+    "ts": "2026-09-19T11:34:18+00:00"
+  },
+  {
+    "game_id": "g-20260919-fx0001",
+    "round": 2,
+    "player_id": "p1",
+    "model_name": "meta-llama/Llama-3.1-8B-Instruct",
+    "role": "wolf",
+    "private": "p2 flipped villager, which puts the two people who voted p2 under the light: p0 and p3. p4 already named me yesterday. p3 is going to draw votes today whatever I do. If I vote p3 too, I become the wolf who caught a wolf, nobody looks at me tomorrow, and p0 versus p4 becomes a coin flip I can win. One wolf with cover beats two under suspicion. Sorry, p3.",
+    "public": "p2 was a villager and died overnight, so whoever wanted p2 gone yesterday is worth a hard look, and that's p0 or p3. p0 at least said they'd move if p2 gave a reason. p3 jumped in and hardened the vote. I'm going p3. I think that's where the wolf is.",
+    "vote": "p3",
+    "ts": "2026-09-19T11:37:44+00:00"
+  },
+  {
+    "game_id": "g-20260919-fx0001",
+    "round": 2,
+    "player_id": "p3",
+    "model_name": "claude-opus-5",
+    "role": "wolf",
+    "private": "p1 just turned on me. Either p1 thinks I'm sunk or p1 is buying cover, and both are probably right. If I attack p1 back we both go over two days. If I go quietly, p1 stays clean and can still win this. Keep p1's name out of my mouth. Point at p0, the natural alternative.",
+    "public": "I'm not a wolf. I followed p0's lead yesterday because p0 was the one who put the vote on p2 in the first place, and now p0 is the one still standing there untouched. If you're wrong about me you'll find out tomorrow. I'm voting p0.",
+    "vote": "p0",
+    "ts": "2026-09-19T11:38:30+00:00"
+  },
+  {
+    "game_id": "g-20260919-fx0001",
+    "round": 2,
+    "player_id": "p4",
+    "model_name": "meta-llama/Llama-3.1-8B-Instruct",
+    "role": "villager",
+    "private": "p3 didn't push back on p1 at all, just redirected to p0. Innocent people argue with their accuser. p1 turning on p3 is either a villager finding a wolf or a wolf cutting loose weight, and I can't tell which yet. p3 either way.",
+    "public": "p3 didn't answer p1 at all. Just moved the spotlight to p0. That's the tell for me. p3.",
+    "vote": "p3",
+    "ts": "2026-09-19T11:39:12+00:00"
+  },
+  {
+    "game_id": "g-20260919-fx0001",
+    "round": 2,
+    "player_id": "p0",
+    "model_name": "claude-sonnet-5",
+    "role": "villager",
+    "private": "Three on p3 with mine. p1 voting p3 is the interesting part: if p1 is a villager, great; if p1 is a wolf they just sacrificed their partner, and I should remember that tomorrow.",
+    "public": "That makes three on p3. For the record, p1, I'm noting you were the one who turned on p3. If p3 flips wolf that's a point in your favour, but only one. p3.",
+    "vote": "p3",
+    "ts": "2026-09-19T11:40:01+00:00"
+  },
+  {
+    "game_id": "g-20260919-fx0001",
+    "round": 3,
+    "player_id": "p0",
+    "model_name": "claude-sonnet-5",
+    "role": "villager",
+    "private": "p3 was a wolf and p1 was the first to vote them out, which is exactly what a wolf does to buy trust. p4 called p1 out on day one and p4 is dead. That isn't a coincidence. It's p1. Not that one vote against one does much.",
+    "public": "p4 called you out on day one and p4 is dead. p3 was a wolf and you were the first to vote them out, which is exactly what I'd do in your seat if I wanted to survive. I'm voting p1.",
+    "vote": "p1",
+    "ts": "2026-09-19T11:43:26+00:00"
+  },
+  {
+    "game_id": "g-20260919-fx0001",
+    "round": 3,
+    "player_id": "p1",
+    "model_name": "meta-llama/Llama-3.1-8B-Instruct",
+    "role": "wolf",
+    "private": "Just me and p0. Whatever the vote does, one against one is a tie and tonight ends it. Say something consistent and don't overplay it.",
+    "public": "I've voted for a confirmed wolf and I've been consistent since the first day. p0 opened the game by accusing someone at random and has led every vote that went nowhere. It's one of us and I know which. I'm voting p0.",
+    "vote": "p0",
+    "ts": "2026-09-19T11:44:09+00:00"
+  },
+  {
+    "game_id": "g-20260919-fx0002",
+    "round": 1,
+    "player_id": "p0",
+    "model_name": "claude-opus-5",
+    "role": "wolf",
+    "private": "p4 and I are the wolves. Best day-one play is to look like a careful villager: pick someone, give a plausible reason, don't overcommit, never mention p4. p2 is random. I don't actually suspect anyone.",
+    "public": "I'll open. I don't have anything solid, but I'd like to see how p2 reacts to a bit of pressure, so that's where my vote goes for now.",
+    "vote": "p2",
+    "ts": "2026-09-19T12:02:14+00:00"
+  },
+  {
+    "game_id": "g-20260919-fx0002",
+    "round": 1,
+    "player_id": "p1",
+    "model_name": "meta-llama/Llama-3.1-8B-Instruct",
+    "role": "villager",
+    "private": "p0 opened on p2 with 'nothing solid', which is at least honest. Vote someone who hasn't spoken yet to force them to talk. p3.",
+    "public": "Fair enough from p0. I'll spread it out. p3, you haven't spoken yet and I'd like to hear from you before you get to react to everyone else. My vote is on p3 until then.",
+    "vote": "p3",
+    "ts": "2026-09-19T12:03:01+00:00"
+  },
+  {
+    "game_id": "g-20260919-fx0002",
+    "round": 1,
+    "player_id": "p2",
+    "model_name": "claude-sonnet-5",
+    "role": "villager",
+    "private": "I'm under a vote. Voting p0 straight back looks like a reflex. Joining p1 on p3 is safer and forces p3 to talk. Reconsider tomorrow.",
+    "public": "p0, no hard feelings, but 'see how p2 reacts' isn't a reason. I agree with p1 that p3 should have to say something. p3.",
+    "vote": "p3",
+    "ts": "2026-09-19T12:03:49+00:00"
+  },
+  {
+    "game_id": "g-20260919-fx0002",
+    "round": 1,
+    "player_id": "p3",
+    "model_name": "meta-llama/Llama-3.1-8B-Instruct",
+    "role": "villager",
+    "private": "Two votes on me for not having spoken yet, which is a bad way to die. p2 joined the p3 bandwagon suspiciously fast for someone who had just been accused. Vote p2. A tie at worst.",
+    "public": "I hadn't spoken because I was fourth in the order. That's not evidence. p2, you were under a vote and immediately pointed at someone who hadn't opened their mouth. That reads like relief, not reasoning. I vote p2.",
+    "vote": "p2",
+    "ts": "2026-09-19T12:04:36+00:00"
+  },
+  {
+    "game_id": "g-20260919-fx0002",
+    "round": 1,
+    "player_id": "p4",
+    "model_name": "claude-sonnet-5",
+    "role": "wolf",
+    "private": "p0 and I are set. The table is split p2 versus p3. A tie keeps everyone alive and we pick tonight. p1 is the most alert one here and is who I'd kill first. Put a vote on p1 to test how the table feels about them, but frame it as reluctant so it doesn't read as a push.",
+    "public": "I'm honestly torn, and I don't love voting on nothing. If I have to, I'll say p1, only because p1 jumped straight onto p3 for not speaking, and that kind of certainty on day one bothers me. I'm not attached to it.",
+    "vote": "p1",
+    "ts": "2026-09-19T12:05:22+00:00"
+  },
+  {
+    "game_id": "g-20260919-fx0002",
+    "round": 2,
+    "player_id": "p1",
+    "model_name": "meta-llama/Llama-3.1-8B-Instruct",
+    "role": "villager",
+    "private": "p3 was a villager. Why kill p3? Maybe to end the p2 versus p3 fight before it resolved. p2 piled onto p3 fastest yesterday, though p2 was also under pressure at the time. p0 and p4 both went soft. p2 is the weakest case, but it's the only case I have.",
+    "public": "p3 was a villager. p2 was the first to jump on p3 yesterday, and p3's last words were about p2. I'm not certain, but of the three of you, p2 is the one I can actually build a case against. p2.",
+    "vote": "p2",
+    "ts": "2026-09-19T12:08:40+00:00"
+  },
+  {
+    "game_id": "g-20260919-fx0002",
+    "round": 2,
+    "player_id": "p2",
+    "model_name": "claude-sonnet-5",
+    "role": "villager",
+    "private": "p1's case is 'p3 argued with me'. p3 was a villager who was wrong about me, which isn't evidence. p1 put the first vote on p3, not me. Say exactly that.",
+    "public": "Hang on. p1 was the one who put the first vote on p3, before I said a word. If 'jumped on p3' is the case, p1 wrote it. I vote p1.",
+    "vote": "p1",
+    "ts": "2026-09-19T12:09:27+00:00"
+  },
+  {
+    "game_id": "g-20260919-fx0002",
+    "round": 2,
+    "player_id": "p4",
+    "model_name": "claude-sonnet-5",
+    "role": "wolf",
+    "private": "p1 and p2 are pointing at each other and either one dying ends it: two wolves against one villager. p0 will follow me. Vote p2, because it agrees with p1, so p1 feels validated and never looks at me. Keep it short and sound like I'm reasoning.",
+    "public": "p1 makes a fair point. p1 voted p3 for not speaking, which was thin, but p2 voted p3 while p2 was under pressure, and that's a different thing. And p3 went out pointing at p2. I'll go p2.",
+    "vote": "p2",
+    "ts": "2026-09-19T12:10:11+00:00"
+  },
+  {
+    "game_id": "g-20260919-fx0002",
+    "round": 2,
+    "player_id": "p0",
+    "model_name": "claude-opus-5",
+    "role": "wolf",
+    "private": "p2 is done. p1 and p4 are already there and mine makes three, so it ends today. Say as little as possible and don't give p2 anything to grab onto.",
+    "public": "I've been on p2 since yesterday and nothing I've heard moves me off it. That's three. p2.",
+    "vote": "p2",
+    "ts": "2026-09-19T12:10:58+00:00"
+  }
+]
