@@ -21,6 +21,14 @@ class RefusalError(RuntimeError):
     pass
 
 
+CREDENTIAL_HELP = ("no Anthropic credentials: set ANTHROPIC_API_KEY (or ANTHROPIC_AUTH_TOKEN), or log in with "
+                   "`ant auth login`. This is the Anthropic key, not the ElevenLabs/OpenAI ones")
+
+
+class MissingCredentialsError(RuntimeError):
+    """Raised before any game runs when the Anthropic key is absent or rejected."""
+
+
 def _supports_effort(model_name: str) -> bool:
     # effort is rejected on Haiku 4.5 and older Sonnet models; fine on Opus/Sonnet 5, 4.6+, Fable.
     return "haiku" not in model_name
@@ -42,8 +50,15 @@ class AnthropicAgent:
         if self._client is None:
             import anthropic
 
-            self._client = anthropic.Anthropic(timeout=self.timeout, max_retries=self.max_retries)
+            try:
+                self._client = anthropic.Anthropic(timeout=self.timeout, max_retries=self.max_retries)
+            except (TypeError, anthropic.AnthropicError) as e:
+                raise MissingCredentialsError(f"{CREDENTIAL_HELP} (sdk: {e})") from e
         return self._client
+
+    def preflight(self) -> None:
+        """Build the client now so a missing key fails loudly before a game starts."""
+        self._get_client()
 
     def _request(self, messages: list[dict]) -> dict:
         system = "\n\n".join(m["content"] for m in messages if m["role"] == "system")
@@ -65,6 +80,8 @@ class AnthropicAgent:
         kwargs = self._request(messages)
         try:
             resp = client.messages.create(**kwargs)
+        except anthropic.AuthenticationError as e:
+            raise MissingCredentialsError(f"ANTHROPIC_API_KEY was rejected by the API (401). {CREDENTIAL_HELP} (sdk: {e})") from e
         except anthropic.BadRequestError:
             if "output_config" not in kwargs:
                 raise

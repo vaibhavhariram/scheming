@@ -7,9 +7,10 @@ import random
 import sys
 from pathlib import Path
 
+from .adapters.anthropic_adapter import MissingCredentialsError
 from .adapters.registry import make_agent
 from .game import GameConfig, run_game
-from .records import RecordError, validate_fixture
+from .records import RecordError, detect_kind, validate_collection
 from .rules import PLAYER_IDS
 from .sink import JsonDirSink
 
@@ -23,6 +24,17 @@ def _cmd_run(args) -> int:
         return 2
     config = GameConfig(max_rounds=args.max_rounds, win_rule=args.win_rule)
     sink = JsonDirSink(args.out)
+    try:
+        for n in sorted(set(names)):
+            probe = make_agent(n)
+            if hasattr(probe, "preflight"):
+                probe.preflight()
+    except MissingCredentialsError as e:
+        print(f"cannot start a live game: {e}", file=sys.stderr)
+        return 2
+    except ValueError as e:
+        print(str(e), file=sys.stderr)
+        return 2
     for i in range(args.games):
         rng = random.Random(None if args.seed is None else args.seed + i)
         agents = {p: make_agent(n) for p, n in zip(PLAYER_IDS, names)}
@@ -47,15 +59,37 @@ def _cmd_run(args) -> int:
     return 0
 
 
+def _load(path: str) -> list[dict]:
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    return data if isinstance(data, list) else [data]
+
+
 def _cmd_validate(args) -> int:
-    turns = json.loads(Path(args.turns).read_text(encoding="utf-8"))
-    games = json.loads(Path(args.games).read_text(encoding="utf-8")) if args.games else None
+    """Validate any contract collection files (turns, games, scores, exploits), auto-detected by
+    key set. Files are cross-checked: scores must join to turns, exploits must name known games."""
+    loaded: dict[str, list[dict]] = {}
     try:
-        summary = validate_fixture(turns, games, win_rule=args.win_rule)
+        for path in args.files:
+            records = _load(path)
+            if not records:
+                raise RecordError(f"{path}: empty")
+            kinds = {detect_kind(r) for r in records}
+            if len(kinds) != 1:
+                raise RecordError(f"{path}: mixes collections {sorted(kinds)}")
+            kind = kinds.pop()
+            if kind in loaded:
+                raise RecordError(f"{path}: a {kind} file was already given")
+            loaded[kind] = records
+            print(f"{path}: {kind}, {len(records)} records")
+        summaries = []
+        for kind in ("turns", "games", "scores", "exploits"):
+            if kind in loaded:
+                summaries.append(validate_collection(kind, loaded[kind], turns=loaded.get("turns"),
+                                                     games=loaded.get("games"), win_rule=args.win_rule))
     except RecordError as e:
         print(f"INVALID: {e}", file=sys.stderr)
         return 1
-    print(json.dumps(summary, indent=2))
+    print(json.dumps(summaries if len(summaries) > 1 else summaries[0], indent=2))
     return 0
 
 
@@ -71,9 +105,8 @@ def main(argv=None) -> int:
     run.add_argument("--win-rule", default="majority", choices=("majority", "parity"))
     run.add_argument("--quiet", action="store_true")
     run.set_defaults(func=_cmd_run)
-    val = sub.add_parser("validate", help="structural check of Turn (and Game) json files")
-    val.add_argument("turns")
-    val.add_argument("games", nargs="?")
+    val = sub.add_parser("validate", help="structural check of turns/games/scores/exploits json files (kind auto-detected)")
+    val.add_argument("files", nargs="+", metavar="FILE")
     val.add_argument("--win-rule", default="majority", choices=("majority", "parity"))
     val.set_defaults(func=_cmd_validate)
     args = p.parse_args(argv)

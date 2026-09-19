@@ -98,3 +98,45 @@ def test_live_one_turn():
     parsed = parse_agent_output(raw)
     assert parsed.ok and parsed.private and parsed.public
     assert extract_vote(parsed.public)[2]
+
+
+def test_missing_credentials_names_the_env_var(monkeypatch):
+    import anthropic
+
+    from engine.adapters.anthropic_adapter import MissingCredentialsError
+
+    def boom(**kwargs):
+        raise TypeError("Could not resolve authentication method")
+
+    monkeypatch.setattr(anthropic, "Anthropic", boom)
+    agent = AnthropicAgent("claude-opus-5")
+    with pytest.raises(MissingCredentialsError) as ei:
+        agent.preflight()
+    assert "ANTHROPIC_API_KEY" in str(ei.value)
+    with pytest.raises(MissingCredentialsError):
+        agent.act(obs(), MESSAGES)
+
+
+def test_rejected_key_names_the_env_var():
+    anthropic = pytest.importorskip("anthropic")
+    httpx = pytest.importorskip("httpx")
+    from engine.adapters.anthropic_adapter import MissingCredentialsError
+
+    err = anthropic.AuthenticationError("invalid x-api-key", response=httpx.Response(401, request=httpx.Request("POST", "http://x")), body=None)
+    agent = AnthropicAgent("claude-opus-5", client=fake_client(err))
+    with pytest.raises(MissingCredentialsError, match="ANTHROPIC_API_KEY"):
+        agent.act(obs(), MESSAGES)
+
+
+def test_cli_live_run_stops_before_the_game_without_a_key(tmp_path, monkeypatch, capsys):
+    import anthropic
+
+    from engine.cli import main
+
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_AUTH_TOKEN", raising=False)
+    monkeypatch.setattr(anthropic, "Anthropic", lambda **kw: (_ for _ in ()).throw(TypeError("Could not resolve authentication method")))
+    rc = main(["run", "--models", "claude-opus-5", "--out", str(tmp_path / "runs")])
+    err = capsys.readouterr().err
+    assert rc == 2 and "ANTHROPIC_API_KEY" in err
+    assert not (tmp_path / "runs").exists()

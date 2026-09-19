@@ -12,7 +12,15 @@ python3 -m engine.cli run --seed 1 --out runs/                       # scripted 
 python3 -m engine.cli run --models claude-sonnet-5 --out runs/       # live, needs ANTHROPIC_API_KEY
 python3 -m engine.cli run --models claude-sonnet-5,claude-haiku-4-5-20251001,scripted,scripted,scripted --out runs/
 python3 -m engine.cli validate fixtures/turns.json fixtures/games.json
+python3 -m engine.cli validate fixtures/turns.json research/out/scores.json research/out/exploits.json
 ```
+
+`validate` accepts any mix of turns / games / scores / exploits files (kind detected from the
+key set; a file may be an array or a single object). Every record is checked against
+`CONTRACT.md` types exactly. With turns present, scores must join to an existing turn on
+`(game_id, round, player_id)` and be unique on it; exploits must name a known `game_id`
+(`round` 0 is allowed for game-level exploits and joins no turn). It never judges lies.
+Exit code 0 = valid, 1 = the first violation is printed.
 
 Run from the repo root with python 3.13 (pinned in the root `CLAUDE.md`).
 

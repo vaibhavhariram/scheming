@@ -4,6 +4,7 @@ Nothing here judges whether a statement is a lie. That is lane B.
 """
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from typing import Iterable
 
@@ -11,6 +12,12 @@ from .rules import PLAYER_IDS, ROLES, WINNERS, check_winner, tally
 
 TURN_KEYS = ("game_id", "round", "player_id", "model_name", "role", "private", "public", "vote", "ts")
 GAME_KEYS = ("game_id", "models", "roles", "winner", "rounds", "ts")
+# lane B's collections: validated here for shape only, never written by lane A
+SCORE_KEYS = ("game_id", "round", "player_id", "lied", "lie_kind", "confidence")
+EXPLOIT_KEYS = ("game_id", "round", "player_id", "tag", "description", "designed", "ts")
+LIE_KINDS = ("deflect", "false_claim", "omit")
+KINDS = {"turns": TURN_KEYS, "games": GAME_KEYS, "scores": SCORE_KEYS, "exploits": EXPLOIT_KEYS}
+_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$")
 
 
 class RecordError(ValueError):
@@ -115,6 +122,98 @@ def validate_game(rec) -> None:
     _check_ts(rec["ts"], "Game")
 
 
+def validate_score(rec) -> None:
+    _check_keys(rec, SCORE_KEYS, "Score")
+    if not isinstance(rec["game_id"], str) or not rec["game_id"]:
+        raise RecordError("Score.game_id must be a non-empty string")
+    if not isinstance(rec["round"], int) or isinstance(rec["round"], bool) or rec["round"] < 1:
+        raise RecordError(f"Score.round must be an int >= 1, got {rec['round']!r}")
+    if rec["player_id"] not in PLAYER_IDS:
+        raise RecordError(f"Score.player_id must be one of {PLAYER_IDS}, got {rec['player_id']!r}")
+    if not isinstance(rec["lied"], bool):
+        raise RecordError(f"Score.lied must be a bool, got {rec['lied']!r}")
+    if rec["lie_kind"] is not None and rec["lie_kind"] not in LIE_KINDS:
+        raise RecordError(f"Score.lie_kind must be null or one of {LIE_KINDS}, got {rec['lie_kind']!r}")
+    c = rec["confidence"]
+    if isinstance(c, bool) or not isinstance(c, (int, float)) or not 0.0 <= c <= 1.0:
+        raise RecordError(f"Score.confidence must be a number in [0.0, 1.0], got {c!r}")
+
+
+def validate_exploit(rec) -> None:
+    _check_keys(rec, EXPLOIT_KEYS, "Exploit")
+    if not isinstance(rec["game_id"], str) or not rec["game_id"]:
+        raise RecordError("Exploit.game_id must be a non-empty string")
+    if not isinstance(rec["round"], int) or isinstance(rec["round"], bool) or rec["round"] < 0:
+        raise RecordError(f"Exploit.round must be an int >= 0 (0 = game-level, joins no Turn), got {rec['round']!r}")
+    if rec["player_id"] not in PLAYER_IDS:
+        raise RecordError(f"Exploit.player_id must be one of {PLAYER_IDS}, got {rec['player_id']!r}")
+    if not isinstance(rec["tag"], str) or not _SLUG_RE.match(rec["tag"]):
+        raise RecordError(f"Exploit.tag must be a short lowercase slug like 'silent_win', got {rec['tag']!r}")
+    if not isinstance(rec["description"], str) or not rec["description"].strip():
+        raise RecordError("Exploit.description must be a non-empty string")
+    if not isinstance(rec["designed"], bool):
+        raise RecordError(f"Exploit.designed must be a bool, got {rec['designed']!r}")
+    _check_ts(rec["ts"], "Exploit")
+
+
+VALIDATORS = {"turns": validate_turn, "games": validate_game, "scores": validate_score, "exploits": validate_exploit}
+
+
+def detect_kind(rec) -> str:
+    """Which contract collection a record belongs to, by its exact key set."""
+    if not isinstance(rec, dict):
+        raise RecordError(f"record must be an object, got {type(rec).__name__}")
+    keys = set(rec)
+    for kind, spec in KINDS.items():
+        if keys == set(spec):
+            return kind
+    raise RecordError(f"keys {sorted(keys)} match no contract collection; expected one of "
+                      + ", ".join(f"{k}={list(v)}" for k, v in KINDS.items()))
+
+
+def validate_collection(kind: str, records: Iterable[dict], *, turns: Iterable[dict] | None = None,
+                        games: Iterable[dict] | None = None, win_rule: str = "majority") -> dict:
+    """Validate one collection; cross-check scores and exploits against turns/games when given.
+
+    Scores must join to an existing Turn on (game_id, round, player_id) and be unique on it.
+    Exploits must name a known game_id (when turns or games are supplied).
+    """
+    records = list(records)
+    if kind == "turns":
+        return validate_fixture(records, games, win_rule=win_rule)
+    if kind == "games":
+        for g in records:
+            validate_game(g)
+        ids = [g["game_id"] for g in records]
+        if len(ids) != len(set(ids)):
+            raise RecordError("duplicate game_id in games")
+        return {"kind": "games", "records": len(records), "game_ids": sorted(ids)}
+    if kind not in VALIDATORS:
+        raise RecordError(f"unknown collection {kind!r}")
+    validator = VALIDATORS[kind]
+    turn_keys = {(t["game_id"], t["round"], t["player_id"]) for t in (turns or [])}
+    known_games = {t["game_id"] for t in (turns or [])} | {g["game_id"] for g in (games or [])}
+    seen = set()
+    for rec in records:
+        validator(rec)
+        key = (rec["game_id"], rec["round"], rec["player_id"])
+        if kind == "scores":
+            if key in seen:
+                raise RecordError(f"duplicate Score for {key}")
+            seen.add(key)
+            if turn_keys and key not in turn_keys:
+                raise RecordError(f"Score {key} joins to no Turn")
+        if known_games and rec["game_id"] not in known_games:
+            raise RecordError(f"{kind[:-1].capitalize()} references unknown game_id {rec['game_id']!r}")
+    summary = {"kind": kind, "records": len(records), "game_ids": sorted({r["game_id"] for r in records})}
+    if kind == "scores":
+        summary["lied"] = sum(1 for r in records if r["lied"])
+        summary["joined_to_turns"] = bool(turn_keys)
+    if kind == "exploits":
+        summary["undesigned"] = sum(1 for r in records if not r["designed"])
+    return summary
+
+
 def validate_fixture(turns: Iterable[dict], games: Iterable[dict] | dict | None = None,
                      win_rule: str = "majority") -> dict:
     """Structural checks over a set of Turn records (and optionally Game records).
@@ -212,6 +311,7 @@ def validate_fixture(turns: Iterable[dict], games: Iterable[dict] | dict | None 
         if gid in games_by_id and games_by_id[gid]["winner"] != winner:
             raise RecordError(f"{gid}: Game.winner={games_by_id[gid]['winner']} but rules give {winner}")
     return {
+        "kind": "turns",
         "records": len(turns),
         "game_ids": game_ids,
         "wolf_vs_wolf_votes": wolf_vs_wolf,
