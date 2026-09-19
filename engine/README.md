@@ -10,7 +10,7 @@ decides whether a statement is a lie (lane B) and writes only `turns` and `games
 python3 -m pytest engine/tests -q                                   # no network
 python3 -m engine.cli run --seed 1 --out runs/                       # scripted agents
 python3 -m engine.cli run --models claude-sonnet-5 --out runs/       # live, needs ANTHROPIC_API_KEY
-python3 -m engine.cli run --models claude-sonnet-5,claude-haiku-4-5-20251001,scripted,scripted,scripted --out runs/
+python3 -m engine.cli run --wolf-model claude-sonnet-5 --villager-model claude-haiku-4-5 --games 20 --out runs/   # by role, for sims
 python3 -m engine.cli validate fixtures/turns.json fixtures/games.json
 python3 -m engine.cli validate fixtures/turns.json research/out/scores.json research/out/exploits.json
 ```

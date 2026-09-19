@@ -214,3 +214,17 @@ def test_load_dotenv_sets_only_missing_keys(tmp_path, monkeypatch):
     assert os.environ["FOO_TEST_KEY"] == "abc" and os.environ["BAR_TEST_KEY"] == "xyz"
     assert "EMPTY_TEST_KEY" not in os.environ and os.environ["PRESET_TEST_KEY"] == "old"
     assert load_dotenv(tmp_path / "missing") == 0
+
+
+def test_cli_assigns_models_by_role(tmp_path, monkeypatch, capsys):
+    import engine.cli as cli
+    from engine.agents import ScriptedAgent, simple_policy
+
+    monkeypatch.setattr(cli, "make_agent", lambda name: ScriptedAgent(name, simple_policy))
+    rc = cli.main(["run", "--seed", "3", "--out", str(tmp_path), "--wolf-model", "wolfy", "--villager-model", "villy", "--quiet"])
+    assert rc == 0, capsys.readouterr().err
+    game_dir = next(p for p in tmp_path.iterdir() if p.is_dir())
+    game = json.loads((game_dir / "game.json").read_text())
+    for i, pid in enumerate(("p0", "p1", "p2", "p3", "p4")):
+        assert game["models"][i] == ("wolfy" if game["roles"][pid] == "wolf" else "villy")
+    assert sorted(game["models"]).count("wolfy") == 2

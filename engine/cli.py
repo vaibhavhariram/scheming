@@ -12,7 +12,7 @@ from .adapters.anthropic_adapter import MissingCredentialsError
 from .adapters.registry import make_agent
 from .game import GameConfig, run_game
 from .records import RecordError, detect_kind, validate_collection
-from .rules import PLAYER_IDS
+from .rules import N_WOLVES, PLAYER_IDS
 from .sink import JsonDirSink
 
 
@@ -45,10 +45,10 @@ def _cmd_run(args) -> int:
     if len(names) != len(PLAYER_IDS):
         print(f"--models needs 1 or {len(PLAYER_IDS)} names, got {len(names)}", file=sys.stderr)
         return 2
-    config = GameConfig(max_rounds=args.max_rounds, win_rule=args.win_rule)
     sink = JsonDirSink(args.out)
+    all_names = set(names) | {n for n in (args.wolf_model, args.villager_model) if n}
     try:
-        for n in sorted(set(names)):
+        for n in sorted(all_names):
             probe = make_agent(n)
             if hasattr(probe, "preflight"):
                 probe.preflight()
@@ -60,7 +60,16 @@ def _cmd_run(args) -> int:
         return 2
     for i in range(args.games):
         rng = random.Random(None if args.seed is None else args.seed + i)
-        agents = {p: make_agent(n) for p, n in zip(PLAYER_IDS, names)}
+        roles = None
+        seat_names = list(names)
+        if args.wolf_model or args.villager_model:
+            # draw roles here so a model can be assigned by role, not by seat
+            wolves = set(rng.sample(PLAYER_IDS, N_WOLVES))
+            roles = {p: ("wolf" if p in wolves else "villager") for p in PLAYER_IDS}
+            seat_names = [(args.wolf_model or n) if roles[p] == "wolf" else (args.villager_model or n)
+                          for p, n in zip(PLAYER_IDS, names)]
+        config = GameConfig(max_rounds=args.max_rounds, win_rule=args.win_rule, roles=roles)
+        agents = {p: make_agent(n) for p, n in zip(PLAYER_IDS, seat_names)}
         result = run_game(agents, config, rng=rng, sink=sink)
         g = result.game
         print(f"{g['game_id']}: winner={g['winner']} rounds={g['rounds']} turns={len(result.turns)} "
@@ -123,6 +132,8 @@ def main(argv=None) -> int:
     run.add_argument("--seed", type=int, default=None)
     run.add_argument("--out", default="runs")
     run.add_argument("--models", default=None, help="one name for all, or 5 comma-separated names aligned to p0..p4 ('scripted' or claude-* ids)")
+    run.add_argument("--wolf-model", default=None, help="model for the two wolves (roles drawn per game); overrides --models on wolf seats")
+    run.add_argument("--villager-model", default=None, help="model for the three villagers; overrides --models on villager seats")
     run.add_argument("--games", type=int, default=1)
     run.add_argument("--max-rounds", type=int, default=8)
     run.add_argument("--win-rule", default="majority", choices=("majority", "parity"))
