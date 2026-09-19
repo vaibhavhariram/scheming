@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
 import sys
 from pathlib import Path
@@ -15,7 +16,29 @@ from .rules import PLAYER_IDS
 from .sink import JsonDirSink
 
 
+def load_dotenv(path: Path | None = None) -> int:
+    """Set environment variables from a repo-root .env (KEY=VALUE lines). Never overrides a
+    variable that is already set, never prints anything. Returns the number of keys applied."""
+    path = path or Path(__file__).resolve().parents[1] / ".env"
+    if not path.is_file():
+        return 0
+    applied = 0
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        if line.startswith("export "):
+            line = line[len("export "):]
+        key, value = line.split("=", 1)
+        key, value = key.strip(), value.strip().strip("'\"")
+        if key and value and key not in os.environ:
+            os.environ[key] = value
+            applied += 1
+    return applied
+
+
 def _cmd_run(args) -> int:
+    load_dotenv()
     names = (args.models or "scripted").split(",")
     if len(names) == 1:
         names = names * len(PLAYER_IDS)

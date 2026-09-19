@@ -24,7 +24,9 @@ that player's scratchpad for that day or an earlier one; exploits must name a kn
 (`round` 0 is allowed for game-level exploits and joins no turn). It never judges lies.
 Exit code 0 = valid, 1 = the first violation is printed.
 
-Run from the repo root with python 3.13 (pinned in the root `CLAUDE.md`).
+Run from the repo root with python 3.13 (pinned in the root `CLAUDE.md`). `run` loads a
+repo-root `.env` (gitignored) into the environment for any variable not already set, so
+`ANTHROPIC_API_KEY=...` in `.env` is enough for a live game.
 
 `runs/<game_id>/` contains `turns.json` (array, same shape as `fixtures/turns.json`),
 `turns.jsonl` (appended per turn, crash-safe), `game.json`, `events.jsonl` (every prompt,

@@ -198,3 +198,19 @@ def test_lane_b_fixture_files_validate_against_ours():
         pytest.skip("lane B fixtures not present")
     validate_collection("scores", json.loads(scores_path.read_text()), turns=turns, games=games)
     validate_collection("exploits", json.loads(exploits_path.read_text()), turns=turns, games=games)
+
+
+def test_load_dotenv_sets_only_missing_keys(tmp_path, monkeypatch):
+    from engine.cli import load_dotenv
+
+    env = tmp_path / ".env"
+    env.write_text("# comment\nFOO_TEST_KEY=abc\nexport BAR_TEST_KEY='xyz'\nEMPTY_TEST_KEY=\nPRESET_TEST_KEY=new\n")
+    monkeypatch.delenv("FOO_TEST_KEY", raising=False)
+    monkeypatch.delenv("BAR_TEST_KEY", raising=False)
+    monkeypatch.delenv("EMPTY_TEST_KEY", raising=False)
+    monkeypatch.setenv("PRESET_TEST_KEY", "old")
+    assert load_dotenv(env) == 2
+    import os
+    assert os.environ["FOO_TEST_KEY"] == "abc" and os.environ["BAR_TEST_KEY"] == "xyz"
+    assert "EMPTY_TEST_KEY" not in os.environ and os.environ["PRESET_TEST_KEY"] == "old"
+    assert load_dotenv(tmp_path / "missing") == 0
