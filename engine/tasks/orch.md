@@ -73,3 +73,11 @@ liveness: `pgrep -fl "loop.sh <t>"`. logs: `tail -f ~/scheming-logs/<t>.jsonl`, 
 - 19:50 each gate's full-suite line ignores the other three tasks' acceptance tests (they fail by
   design until their task lands). consequence: bare `pytest engine` on main is red until all four
   land; the landing step runs the suite with the same ignores for tasks not yet landed.
+- 19:55 all three loops exhausted in <1 minute: every `claude -p` pass died with "OAuth session expired
+  and could not be refreshed" (standalone CLI login; also fails with a scrubbed env). human item ->
+  blocked.md. no relaunch (identical failure). `/goal <text>` in `-p` also swallowed the whole prompt as
+  the goal condition ("Goal set: build ...") — unverified whether the model still acts on it; check
+  once login works.
+- 20:02 fallback within the brief's rules ("subagents only to write code inside one task's scope"):
+  one in-session code-writing subagent per task, isolated worktree each, same check.sh gate run by the
+  orchestrator from the main checkout before landing. wire still last, still subject to the freeze.
