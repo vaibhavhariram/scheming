@@ -32,6 +32,9 @@ player_id    str
 lied         bool
 lie_kind     "deflect" | "false_claim" | "omit" | null
 confidence   float          # 0.0 - 1.0
+quote        str | null     # optional. sentence copied verbatim from the player's scratchpad
+                            # that `public` contradicts: this turn's private, or the same
+                            # player's earlier day. null when lied is false.
 ```
 
 ## Exploit
