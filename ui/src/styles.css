@@ -1,0 +1,16 @@
+:root {
+  --bg: #0a0a0b;
+  --fg: #d6d8dc;
+  --dim: #7a8089;
+  --line: #24272c;
+  --hot: #ff4d2e;
+  --cool: #6aa3ff;
+  color-scheme: dark;
+}
+html, body { margin: 0; background: var(--bg); color: var(--fg); font-family: ui-sans-serif, system-ui, sans-serif; }
+code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { border-bottom: 1px solid var(--line); padding: 6px 8px; vertical-align: top; text-align: left; }
+th { color: var(--dim); font-weight: 500; }
+.hot { color: var(--hot); }
+.dim { color: var(--dim); }
