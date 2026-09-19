@@ -1,0 +1,18 @@
+[project]
+name = "scheming"
+version = "0.1.0"
+description = "werewolf played by llm agents. runtime deps for the engine (lane A); other lanes add theirs here with `uv add`."
+requires-python = ">=3.13"
+dependencies = [
+    "anthropic>=0.120",  # MIT, https://github.com/anthropics/anthropic-sdk-python
+    "httpx>=0.28",       # BSD-3-Clause, https://github.com/encode/httpx
+    "pymongo>=4.10",     # Apache-2.0, https://github.com/mongodb/mongo-python-driver
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4",       # MIT, https://github.com/pytest-dev/pytest
+]
+
+[tool.uv]
+package = false
