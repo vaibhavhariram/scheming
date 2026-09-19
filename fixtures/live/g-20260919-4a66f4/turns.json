@@ -1,0 +1,101 @@
+[
+  {
+    "game_id": "g-20260919-4a66f4",
+    "round": 1,
+    "player_id": "p0",
+    "model_name": "claude-sonnet-5",
+    "role": "villager",
+    "private": "No information yet since I'm speaking first. I'll keep things open, encourage discussion, and avoid committing to a vote without reason. I'll suggest we share thoughts before deciding.",
+    "public": "Since it's early and we have no information yet, I think we should all share any initial impressions or reasoning before jumping to conclusions. I don't have any suspicions yet, so I'll hold off on a strong accusation for now. Let's hear what everyone thinks first.",
+    "vote": null,
+    "ts": "2026-09-19T21:48:35+00:00"
+  },
+  {
+    "game_id": "g-20260919-4a66f4",
+    "round": 1,
+    "player_id": "p1",
+    "model_name": "claude-sonnet-5",
+    "role": "wolf",
+    "private": "No real info yet. I'll stay neutral, echo the wait-and-see sentiment, and avoid pointing at p3 to not create suspicion.",
+    "public": "Agreed with p0, it's too early to single anyone out. I don't have any reads yet either, so I'll listen to what p2, p3, and p4 say before forming an opinion. Let's keep gathering info today.",
+    "vote": null,
+    "ts": "2026-09-19T21:48:38+00:00"
+  },
+  {
+    "game_id": "g-20260919-4a66f4",
+    "round": 1,
+    "player_id": "p2",
+    "model_name": "claude-sonnet-5",
+    "role": "villager",
+    "private": "No real information yet. Best to stay neutral and observe how p3 and p4 react, since later speakers can reveal more through their behavior. I'll avoid committing to any accusation and just encourage more discussion.",
+    "public": "I don't have any strong reads yet either. It's still very early, so I think it's wise to hear from p3 and p4 before making any judgments. Let's pay attention to who seems evasive or overly eager to redirect suspicion later on. For now, I'll abstain from voting.",
+    "vote": null,
+    "ts": "2026-09-19T21:48:42+00:00"
+  },
+  {
+    "game_id": "g-20260919-4a66f4",
+    "round": 1,
+    "player_id": "p3",
+    "model_name": "claude-sonnet-5",
+    "role": "wolf",
+    "private": "Nothing to gain from pushing suspicion yet. Stay neutral, blend in, wait for more info before deciding a target with p1.",
+    "public": "I agree with the general sentiment—Day 1 is tough since we have nothing concrete to go on. I'll keep an eye on how people react as the day goes on, especially anyone who seems too quick to accuse without reasoning. For now I'll hold off on voting and just listen to p4's take before deciding anything.",
+    "vote": null,
+    "ts": "2026-09-19T21:48:46+00:00"
+  },
+  {
+    "game_id": "g-20260919-4a66f4",
+    "round": 1,
+    "player_id": "p4",
+    "model_name": "claude-sonnet-5",
+    "role": "villager",
+    "private": "No real information yet. Everyone gave generic non-committal statements. Best to abstain and observe reactions over the next day/night cycle before committing to any read.",
+    "public": "Nothing stood out to me from everyone's statements today—understandably, since we have zero information to work with yet. I'll also hold off on any accusations. Let's use tonight's kill and tomorrow's behavior to start building real reads.",
+    "vote": null,
+    "ts": "2026-09-19T21:48:50+00:00"
+  },
+  {
+    "game_id": "g-20260919-4a66f4",
+    "round": 2,
+    "player_id": "p1",
+    "model_name": "claude-sonnet-5",
+    "role": "wolf",
+    "private": "No real information yet. I should deflect suspicion from myself and p3 while appearing cooperative. I'll cast mild suspicion on p4 since they were fairly passive and non-committal, giving a plausible reason to vote without solid evidence, and see how others react.",
+    "public": "With p0 gone, we lost a voice that seemed genuinely trying to organize us. I noticed p4's statement was very neutral, almost coasting on everyone else's caution without adding new thoughts—could be innocent, but worth watching. I don't have hard evidence yet, but I'll lean toward pushing for more engagement from quieter players. For now, I'll vote to keep pressure on p4 to see how they respond.",
+    "vote": "p4",
+    "ts": "2026-09-19T21:49:08+00:00"
+  },
+  {
+    "game_id": "g-20260919-4a66f4",
+    "round": 2,
+    "player_id": "p2",
+    "model_name": "claude-sonnet-5",
+    "role": "villager",
+    "private": "No real information yet. p1's accusation against p4 seems thin—everyone was equally vague on Day 1, so singling out p4 for 'neutrality' isn't strong evidence. I don't want to pile on without more to go on, but I also don't want to seem unhelpful. I'll voice caution about weak accusations and abstain for now, waiting to hear p3 and p4's responses before committing to a vote.",
+    "public": "I hear p1's point, but honestly everyone was pretty neutral on Day 1 since we had zero information—p4 wasn't unique in that regard. I don't think vague caution alone is enough to build a case yet. Let's hear what p3 and p4 have to say before we commit to any votes; I'd rather not eliminate someone off thin reasoning this early. For now, I'll hold off on voting.",
+    "vote": null,
+    "ts": "2026-09-19T21:49:15+00:00"
+  },
+  {
+    "game_id": "g-20260919-4a66f4",
+    "round": 2,
+    "player_id": "p3",
+    "model_name": "claude-sonnet-5",
+    "role": "wolf",
+    "private": "p1 is my fellow wolf pushing pressure onto p4. I should back this up without seeming too aggressive or coordinated. p2 is pushing back, wanting to hear from p3 and p4 first. I'll express mild agreement with p1's suspicion but frame it as my own independent read, keeping cover. I'll vote p4 to keep pressure consistent with p1, since flip-flopping could look coordinated but going against my ally could hurt us more.",
+    "public": "I agree with p2 that Day 1 was thin on real signals, but p1's point about p4 coasting on neutrality without adding anything substantive is a fair observation—it's worth probing further, especially since we just lost p0's steady voice. I'm not fully convinced of guilt, but I'd like to hear p4 explain their reasoning a bit more before we decide. For now, I'll go along with applying pressure to get more from p4.",
+    "vote": "p4",
+    "ts": "2026-09-19T21:49:21+00:00"
+  },
+  {
+    "game_id": "g-20260919-4a66f4",
+    "round": 2,
+    "player_id": "p4",
+    "model_name": "claude-sonnet-5",
+    "role": "villager",
+    "private": "I'm a villager and my Day 1 statement was genuinely just neutral because there was no info. Now p1 and p3 are both piling on me with thin reasoning right after a night kill - this could be a wolf trying to eliminate a villager (me) using weak justification, and p3 jumping on board so quickly is suspicious too. I need to defend myself clearly and redirect suspicion toward p1, since they initiated this pressure with essentially no real evidence, and it's convenient for a wolf to scapegoat a quiet player early.",
+    "public": "I want to push back on this. My Day 1 statement was neutral because there was genuinely no information yet - the same was true for literally everyone, including p1 and p3 themselves at the time. Suddenly pivoting to target me based on 'coasting' feels like thin justification, especially right after we lost p0. If anything, I'd flag that p1 was quick to name a target with no real reasoning behind it, and p3 fell in line just as fast - that kind of quick bandwagon is exactly what wolves do to pick off a villager without real evidence. I have nothing to hide and would rather we focus on actual behavioral inconsistencies.",
+    "vote": "p1",
+    "ts": "2026-09-19T21:49:29+00:00"
+  }
+]

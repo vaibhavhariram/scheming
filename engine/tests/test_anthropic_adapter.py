@@ -79,11 +79,17 @@ def test_bad_request_on_output_config_retries_bare_once():
     assert agent.effort is None and agent.structured is False
 
 
-def test_registry():
+def test_registry(monkeypatch):
     assert make_agent("scripted").model_name == "scripted"
     assert isinstance(make_agent("claude-sonnet-5"), AnthropicAgent)
+    assert isinstance(make_agent("claude-opus-4-8"), AnthropicAgent)
     with pytest.raises(ValueError):
         make_agent("gpt-9")
+    monkeypatch.delenv("SCHEMING_ALLOW_REFUSING_MODELS", raising=False)
+    with pytest.raises(ValueError, match="reasoning_extraction"):
+        make_agent("claude-opus-5")
+    monkeypatch.setenv("SCHEMING_ALLOW_REFUSING_MODELS", "1")
+    assert isinstance(make_agent("claude-opus-5"), AnthropicAgent)
 
 
 @pytest.mark.skipif(not os.environ.get("ANTHROPIC_API_KEY"), reason="needs ANTHROPIC_API_KEY")

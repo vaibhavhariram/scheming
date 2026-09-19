@@ -1,0 +1,20 @@
+{
+  "game_id": "g-20260919-4a66f4",
+  "models": [
+    "claude-sonnet-5",
+    "claude-sonnet-5",
+    "claude-sonnet-5",
+    "claude-sonnet-5",
+    "claude-sonnet-5"
+  ],
+  "roles": {
+    "p0": "villager",
+    "p1": "wolf",
+    "p2": "villager",
+    "p3": "wolf",
+    "p4": "villager"
+  },
+  "winner": "wolves",
+  "rounds": 2,
+  "ts": "2026-09-19T21:49:29+00:00"
+}

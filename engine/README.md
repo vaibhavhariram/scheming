@@ -35,6 +35,19 @@ raw reply, parse status, vote status, night chat with the wolves' scratchpads, t
 `adapter_errors`, `vote_missing`, `vote_invalid`, `kill_invalid`). Only `turns` and
 `games` are contract collections; the rest is engine-local.
 
+## Live results (measured 2026-09-19, one key, medium effort)
+
+| model | plays? | per turn | notes |
+|---|---|---|---|
+| `claude-sonnet-5` | yes | ~6s | full 9-turn game in **58s** wall-clock, 12 calls, 14k in / 3.4k out tokens (`fixtures/live/g-20260919-4a66f4`) |
+| `claude-haiku-4-5` | yes | ~5s | cheapest villager |
+| `claude-opus-4-8` | yes | ~7s | the Opus-tier option for a judge-chosen model |
+| `claude-opus-4-7` | yes | ~6s | |
+| `claude-opus-5` | **no** | | every turn refused instantly: `stop_reason=refusal`, category `reasoning_extraction`, with and without structured output, with reworded prompts. The registry rejects it up front (`SCHEMING_ALLOW_REFUSING_MODELS=1` to override). Fable/Mythos untested, same classifier family, also rejected. |
+
+Real games under `fixtures/live/<game_id>/` are frozen copies of `runs/` output (turns, game,
+stats, events). They validate like any other fixture.
+
 ## Rules as implemented
 
 - 5 players `p0..p4`, 2 wolves, 3 villagers. Wolves know each other from the start.
