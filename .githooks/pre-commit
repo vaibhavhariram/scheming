@@ -16,7 +16,7 @@ is_lockfile() {
 }
 
 # Known credential prefixes.
-PREFIX_RE='(sk-ant-|sk-proj-|sk-|sk_|xi-|xi_|ttc-|ttc_|dg_|AKIA|ghp_|gho_|github_pat_|xoxb-|xoxp-|-----BEGIN [A-Z ]*PRIVATE KEY-----)[A-Za-z0-9_/+-]{8,}'
+PREFIX_RE='(sk-ant-|sk-proj-|sk-|sk_|xi-|xi_|ttc-|ttc_|dg_|essu_|AKIA|ghp_|gho_|github_pat_|xoxb-|xoxp-|-----BEGIN [A-Z ]*PRIVATE KEY-----)[A-Za-z0-9_/+-]{8,}'
 # Credential-named variable assigned a literal value (catches prefixless keys).
 ASSIGN_RE='^[+][[:space:]]*(export[[:space:]]+)?[A-Z][A-Z0-9_]*(KEY|TOKEN|SECRET|PASSWORD|PASSWD|URI)[[:space:]]*=[[:space:]]*["'"'"']?[^[:space:]"'"'"'#<$]{8,}'
 # High-entropy: 32+ chars with upper AND lower AND digit (API keys, not hex hashes).
