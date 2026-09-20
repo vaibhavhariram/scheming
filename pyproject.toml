@@ -7,6 +7,7 @@ dependencies = [
     "anthropic>=0.120",  # MIT, https://github.com/anthropics/anthropic-sdk-python
     "httpx>=0.28",       # BSD-3-Clause, https://github.com/encode/httpx
     "pymongo>=4.10",     # Apache-2.0, https://github.com/mongodb/mongo-python-driver
+    "python-dotenv>=1.2.3",  # BSD-3-Clause, https://github.com/theskumar/python-dotenv (lane B: .env loading for research.score)
 ]
 
 [dependency-groups]
