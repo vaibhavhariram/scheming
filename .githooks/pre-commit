@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Block commits containing credentials. Pure bash, no dependencies.
+# Reports file:line ONLY — never the matched value.
+# Emergency bypass: git commit --no-verify   (do not use to ship a key)
+set -uo pipefail
+
+RED=$'\033[31m'; YEL=$'\033[33m'; OFF=$'\033[0m'
+fail=0
+
+# Files that legitimately carry long hashes; entropy rule skips them.
+is_lockfile() {
+  case "$1" in
+    *uv.lock|*package-lock.json|*yarn.lock|*pnpm-lock.yaml|*Cargo.lock|*poetry.lock|*go.sum) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Known credential prefixes.
+PREFIX_RE='(sk-ant-|sk-proj-|sk-|sk_|xi-|xi_|ttc-|ttc_|dg_|AKIA|ghp_|gho_|github_pat_|xoxb-|xoxp-|-----BEGIN [A-Z ]*PRIVATE KEY-----)[A-Za-z0-9_/+-]{8,}'
+# Credential-named variable assigned a literal value (catches prefixless keys).
+ASSIGN_RE='^[+][[:space:]]*(export[[:space:]]+)?[A-Z][A-Z0-9_]*(KEY|TOKEN|SECRET|PASSWORD|PASSWD|URI)[[:space:]]*=[[:space:]]*["'"'"']?[^[:space:]"'"'"'#<$]{8,}'
+# High-entropy: 32+ chars with upper AND lower AND digit (API keys, not hex hashes).
+ENTROPY_RE='[A-Za-z0-9_-]{32,}'
+
+report() { printf '%s  %s:%s%s  %s\n' "$RED" "$2" "$3" "$OFF" "$1"; fail=1; }
+
+# Walk each staged file, examine only ADDED lines, keep real line numbers.
+while IFS= read -r path; do
+  [ -z "$path" ] && continue
+  git diff --cached -U0 -- "$path" | awk -v p="$path" '
+    /^@@/ { if (match($0, /\+[0-9]+/)) { ln = substr($0, RSTART+1, RLENGTH-1) + 0 }; next }
+    /^\+/ && !/^\+\+\+/ { print p "\t" ln "\t" $0; ln++ }
+  '
+done < <(git diff --cached --name-only --diff-filter=ACM) | while IFS=$'\t' read -r path lineno content; do
+  if printf '%s' "$content" | grep -qE "$PREFIX_RE"; then
+    report "credential prefix" "$path" "$lineno"
+  elif printf '%s' "$content" | grep -qE "$ASSIGN_RE"; then
+    report "credential-named assignment with a literal value" "$path" "$lineno"
+  elif ! is_lockfile "$path"; then
+    tok=$(printf '%s' "$content" | grep -oE "$ENTROPY_RE" | head -1)
+    if [ -n "$tok" ] \
+       && printf '%s' "$tok" | grep -q '[A-Z]' \
+       && printf '%s' "$tok" | grep -q '[a-z]' \
+       && printf '%s' "$tok" | grep -q '[0-9]'; then
+      report "32+ char high-entropy token" "$path" "$lineno"
+    fi
+  fi
+done > "${TMPDIR:-/tmp}/precommit.$$" 2>&1
+
+if [ -s "${TMPDIR:-/tmp}/precommit.$$" ]; then
+  printf '%s\n' "${RED}commit blocked — possible credential in staged changes${OFF}"
+  cat "${TMPDIR:-/tmp}/precommit.$$"
+  printf '%s\n' "${YEL}values are not shown by design. inspect with: git diff --cached -- <file>${OFF}"
+  printf '%s\n' "${YEL}if this is a false positive: git commit --no-verify${OFF}"
+  rm -f "${TMPDIR:-/tmp}/precommit.$$"
+  exit 1
+fi
+rm -f "${TMPDIR:-/tmp}/precommit.$$"
+
+# Refuse to commit .env under any name.
+if git diff --cached --name-only --diff-filter=ACM | grep -qE '(^|/)\.env($|\.)' \
+   && ! git diff --cached --name-only --diff-filter=ACM | grep -qxE '(.*/)?\.env\.example'; then
+  printf '%s\n' "${RED}commit blocked — a .env file is staged${OFF}"
+  exit 1
+fi
+exit 0

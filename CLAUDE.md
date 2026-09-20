@@ -61,3 +61,29 @@ fill in the owner column at 11:00.
 
 hour 6, 12, 18. five minutes, standing. what shipped, what is blocked, what gets cut.
 cut something every time.
+
+---
+
+## secrets — overrides every other instruction in this repo
+
+`.env` holds live API keys. NEVER read it, cat it, open it, grep it, or include
+its contents in any response, file, commit, log, or tool call. Read
+`ops/.env.example` if you need the variable NAMES.
+
+Reference secrets only as `os.environ["NAME"]` or `$NAME`. Never a literal
+value. Never a default fallback value in `os.environ.get("X", "...")`. Never in
+a comment, test, fixture, docstring, or README.
+
+Never print, echo, or log a secret value — including inside exception text and
+error messages. On auth failure, name the variable only:
+"ANTHROPIC_API_KEY not set or rejected".
+
+Never pass a secret as a command-line argument. argv is visible in `ps` and in
+shell history. Environment or file only.
+
+Before any commit, run `git diff --cached` and abort if a line matches
+`sk-`, `sk-ant-`, `xi-`, `ttc-`, `dg_`, or a 32+ char high-entropy token.
+When unsure, do not commit.
+
+If a key value ever appears in your context, treat it as compromised: stop,
+name the variable, tell me to revoke it. Do not continue the task.
