@@ -64,3 +64,60 @@ export interface Game {
   /** optional: not in CONTRACT.md. design/rules.md: {player_id: "vote" | "night" | null} */
   death_cause?: Partial<Record<PlayerId, DeathCause>>
 }
+
+// ---- engine-local event log (runs/<game_id>/events.jsonl) --------------------------------
+// NOT a contract collection. The engine writes it next to turns.jsonl; the ui reads it, when it
+// exists, for things the contract has no field for: who was living each day, the vote tally, the
+// night chat between wolves, who was killed. Every consumer must render without it. Only the
+// fields the ui reads are typed; `agent_reply` events (full prompts) are dropped at load.
+
+interface EvBase {
+  game_id: string
+  round: number
+  ts: string
+}
+export interface EvDayStart extends EvBase {
+  type: 'day_start'
+  order: PlayerId[]
+  living: PlayerId[]
+}
+export interface EvTurn extends EvBase {
+  type: 'turn'
+  player_id: PlayerId
+}
+export interface EvDayResult extends EvBase {
+  type: 'day_result'
+  counts: Record<string, number>
+  eliminated: PlayerId | null
+  eliminated_role: Role | null
+  reason: string
+  living: PlayerId[]
+}
+export interface EvNightStart extends EvBase {
+  type: 'night_start'
+  wolves: PlayerId[]
+  living: PlayerId[]
+}
+export interface EvNightTurn extends EvBase {
+  type: 'night_turn'
+  player_id: PlayerId
+  /** the wolf's own scratchpad for the night */
+  private: string
+  /** what it said to its partner */
+  message: string
+  kill: PlayerId | null
+}
+export interface EvNightResult extends EvBase {
+  type: 'night_result'
+  killed: PlayerId | null
+  killed_role: Role | null
+  reason: string
+  living: PlayerId[]
+}
+export interface EvGameEnd extends EvBase {
+  type: 'game_end'
+  winner: Winner
+  rounds: number
+  end_reason: string
+}
+export type EngineEvent = EvDayStart | EvTurn | EvDayResult | EvNightStart | EvNightTurn | EvNightResult | EvGameEnd

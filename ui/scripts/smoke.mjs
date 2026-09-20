@@ -11,7 +11,7 @@ const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (
 try {
   const idx = await (await fetch(`${base}/data/index.json`)).json()
   check(Array.isArray(idx) && idx.length > 0, `index.json lists ${idx.length} games`)
-  for (const k of ['game_id', 'dir', 'turn_count', 'has_scores', 'has_exploits', 'mtime']) check(idx.every((e) => k in e), `every index entry has ${k}`)
+  for (const k of ['game_id', 'dir', 'turn_count', 'has_scores', 'has_exploits', 'has_events', 'mtime']) check(idx.every((e) => k in e), `every index entry has ${k}`)
   const fx = idx.filter((e) => e.dir === 'fixtures')
   check(fx.length === 2, `fixtures fallback split into 2 games (${fx.map((e) => e.game_id).join(', ')})`)
   check(fx.reduce((n, e) => n + e.turn_count, 0) === 20 && fx.every((e) => e.has_scores), 'fixture games: 20 turns between them, both scored')
@@ -21,7 +21,7 @@ try {
   const byKey = new Map(turns.map((t) => [`${t.game_id}|${t.round}|${t.player_id}`, t]))
   const lied = scores.filter((s) => s.lied)
   const inTurn = lied.filter((s) => s.quote && byKey.get(`${s.game_id}|${s.round}|${s.player_id}`)?.private.includes(s.quote)).length
-  check(inTurn >= 1 && lied.every((s) => s.quote !== undefined), `lied quotes: ${inTurn}/${lied.length} verbatim in the same turn's private (the rest quote an earlier day; rendered without highlight)`)
+  check(inTurn >= 1 && lied.every((s) => s.quote !== undefined), `lied quotes: ${inTurn}/${lied.length} verbatim in the same turn's private (the rest quote an earlier day; shown under the scratchpad with the day they came from)`)
   const run = idx.find((e) => e.game_id === 'g-20260920-6f7625')
   if (run) {
     check(run.turn_count === 9 && run.dir.startsWith('runs/'), 'runs/g-20260920-6f7625 indexed with 9 turns')

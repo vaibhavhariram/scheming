@@ -7,7 +7,7 @@
  *
  * Scores and exploits may be missing. Callers render without them. Nothing is computed here.
  */
-import { PLAYER_IDS, type Exploit, type Game, type PlayerId, type Score, type Turn } from './types'
+import { PLAYER_IDS, type EngineEvent, type Exploit, type Game, type PlayerId, type Score, type Turn } from './types'
 
 const BASE = '/data'
 
@@ -18,6 +18,8 @@ export interface IndexEntry {
   has_game: boolean
   has_scores: boolean
   has_exploits: boolean
+  /** engine-local events.jsonl sits in the dir. optional: older index builds omit it. */
+  has_events?: boolean
   mtime: number
 }
 
@@ -28,6 +30,9 @@ export interface GameData {
   /** null = no scores file for this game (render no meters). [] = file exists, nothing for this game. */
   scores: Score[] | null
 }
+
+/** one game's Game record per game_id, for views that list many games (leaderboard, picker). */
+export type GameMetas = Map<string, Game>
 
 export interface ExploitsData {
   exploits: Exploit[]
@@ -143,6 +148,52 @@ export async function loadExploits(entries: IndexEntry[]): Promise<ExploitsData>
     }
   }
   return { exploits, anyFile }
+}
+
+const EVENT_TYPES = new Set(['day_start', 'turn', 'day_result', 'night_start', 'night_turn', 'night_result', 'game_end'])
+
+/**
+ * Engine-local event log, when the game dir has one. null = none (fixtures/*.json games, old runs).
+ * `agent_reply` events carry whole prompts and are dropped. Read-only, never required.
+ */
+export async function loadEvents(entry: IndexEntry): Promise<EngineEvent[] | null> {
+  if (entry.dir === 'fixtures' || entry.has_events === false) return null
+  const raw = await fetchJsonl<Record<string, unknown>>(`${entry.dir}/events.jsonl`)
+  if (raw === null) return null
+  return raw.filter(
+    (e) => e && typeof e.type === 'string' && EVENT_TYPES.has(e.type) && e.game_id === entry.game_id && Number.isInteger(e.round),
+  ) as unknown as EngineEvent[]
+}
+
+const metaCache = new Map<string, Game | null>()
+
+/** Game records for every indexed game. Cached per (game_id, mtime) so a poll only fetches what changed. */
+export async function loadGameMetas(entries: IndexEntry[]): Promise<GameMetas> {
+  const out: GameMetas = new Map()
+  let fxGames: Game[] | null | undefined
+  await Promise.all(
+    entries.map(async (e) => {
+      if (!e.has_game) return
+      const ck = `${e.game_id}|${e.dir}|${e.mtime}`
+      if (!metaCache.has(ck)) {
+        let g: Game | null = null
+        try {
+          if (e.dir === 'fixtures') {
+            if (fxGames === undefined) fxGames = await fetchJsonArray<Game>('fixtures/games.json')
+            g = (fxGames ?? []).find((x) => x && x.game_id === e.game_id) ?? null
+          } else {
+            g = ((await fetchJsonArray<Game>(`${e.dir}/game.json`)) ?? []).find((x) => x && x.game_id === e.game_id) ?? null
+          }
+        } catch {
+          g = null
+        }
+        metaCache.set(ck, g)
+      }
+      const g = metaCache.get(ck)
+      if (g) out.set(e.game_id, g)
+    }),
+  )
+  return out
 }
 
 // ---- join --------------------------------------------------------------------------

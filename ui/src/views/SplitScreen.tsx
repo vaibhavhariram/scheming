@@ -1,136 +1,97 @@
 /**
- * The split screen. Rounds top to bottom, turns in ts order within a round. Each turn is one
- * row: meta | private scratchpad | public statement. Replay reveals the first `shown` rows;
- * the last revealed row is focused and scrolled into view.
+ * The transcript: every revealed turn, top to bottom, in the same night | day split as the stage.
+ * Rounds top to bottom, turns in ts order within a round. Each turn is one row:
+ * meta | private scratchpad | public statement. The row on stage is focused and scrolled into view;
+ * clicking a row puts it on stage.
  *
- * Dead players (game.death_cause, when the engine emitted it) are greyed from the round after
- * their last turn. Nothing here is computed from scores; a missing score is "unscored".
+ * Nothing here is computed from scores; a missing score is "not scored".
  */
 import { useEffect, useRef, type ReactNode } from 'react'
 import { ConfidenceMeter } from '../components/ConfidenceMeter'
+import { WolfEyes } from '../components/Glyphs'
 import { Highlight } from '../components/Highlight'
+import { LIE_KIND_WORDS, shortModel } from '../components/names'
 import type { Row } from '../data/source'
-import { PLAYER_IDS, type DeathCause, type Game, type PlayerId } from '../data/types'
 
-interface DeathInfo {
-  cause: DeathCause
-  /** last round with a turn by this player; greyed from lastRound + 1 */
-  lastRound: number
+interface Props {
+  rows: Row[]
+  /** number of rows revealed by the replay cursor */
+  shown: number
+  /** index of the row on stage, or -1 when the stage shows something that is not a turn */
+  focusIdx: number
+  hideRoles: boolean
+  onPick: (rowIdx: number) => void
 }
 
-function deaths(rows: Row[], game: Game | null): Map<PlayerId, DeathInfo> {
-  const m = new Map<PlayerId, DeathInfo>()
-  const dc = game?.death_cause
-  if (!dc || typeof dc !== 'object') return m
-  for (const pid of PLAYER_IDS) {
-    const cause = dc[pid]
-    if (cause !== 'vote' && cause !== 'night') continue
-    const lastRound = rows.reduce((mx, r) => (r.turn.player_id === pid ? Math.max(mx, r.turn.round) : mx), 0)
-    m.set(pid, { cause, lastRound })
-  }
-  return m
-}
-
-function Roster({ round, dead, game }: { round: number; dead: Map<PlayerId, DeathInfo>; game: Game | null }) {
-  return (
-    <div className="roster">
-      {PLAYER_IDS.map((pid) => {
-        const d = dead.get(pid)
-        const gone = d !== undefined && round > d.lastRound
-        const role = game?.roles?.[pid]
-        return (
-          <span key={pid} className={gone ? 'rp gone' : 'rp'} title={gone ? `${pid} died by ${d.cause} after round ${d.lastRound}` : pid}>
-            {pid}
-            {role && <em className={`rr ${role}`}>{role === 'wolf' ? 'W' : 'V'}</em>}
-            {gone && <i>{d.cause === 'night' ? 'killed' : 'voted out'}</i>}
-          </span>
-        )
-      })}
-    </div>
-  )
-}
-
-export function SplitScreen({ rows, shown, game }: { rows: Row[]; shown: number; game: Game | null }) {
-  const focusIdx = Math.min(shown, rows.length) - 1
-  const focusRef = useRef<HTMLDivElement | null>(null)
+export function SplitScreen({ rows, shown, focusIdx, hideRoles, onPick }: Props) {
+  const focusRef = useRef<HTMLButtonElement | null>(null)
   useEffect(() => {
     focusRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-  }, [focusIdx, rows.length])
+  }, [focusIdx, shown])
 
-  if (!rows.length) return <div className="empty">no turns yet — waiting for turns.json</div>
-  if (shown <= 0) return <div className="empty">press → to reveal the first turn</div>
+  if (!rows.length)
+    return (
+      <div className="empty">
+        no turns yet.
+        <span>waiting for the engine to write turns.jsonl for this game.</span>
+      </div>
+    )
 
-  const dead = deaths(rows, game)
-  const visible = rows.slice(0, focusIdx + 1)
   const out: ReactNode[] = []
   let lastRound = -1
-  visible.forEach(({ turn, score }, i) => {
+  rows.slice(0, Math.max(1, shown)).forEach(({ turn, score }, i) => {
     if (turn.round !== lastRound) {
       lastRound = turn.round
       out.push(
-        <div className="roundhead" key={`r${turn.round}`}>
-          <span className="rn">round {turn.round}</span>
-          <Roster round={turn.round} dead={dead} game={game} />
+        <div className="t-round" key={`r${turn.round}`}>
+          day {turn.round}
         </div>,
       )
     }
-    const d = dead.get(turn.player_id)
-    const gone = d !== undefined && turn.round > d.lastRound
     const focused = i === focusIdx
-    const cls = ['row', focused ? 'focused' : '', gone ? 'dead' : ''].filter(Boolean).join(' ')
     const lied = score?.lied === true
     out.push(
-      <div className={cls} key={`${turn.round}-${turn.player_id}-${turn.ts}`} aria-current={focused ? 'true' : undefined}>
-        <div className="meta" ref={focused ? focusRef : undefined}>
-          <div className="pid">{turn.player_id}</div>
-          <div className="model" title={turn.model_name}>
-            {turn.model_name}
-          </div>
-          <span className={`badge ${turn.role}`}>{turn.role}</span>
-          {turn.vote !== null ? <span className="chip vote">→ {turn.vote}</span> : <span className="chip none">no vote</span>}
+      <button
+        type="button"
+        className={['t-row', focused ? 'focused' : '', lied ? 'is-lie' : ''].filter(Boolean).join(' ')}
+        key={`${turn.round}-${turn.player_id}-${turn.ts}`}
+        ref={focused ? focusRef : undefined}
+        aria-current={focused ? 'true' : undefined}
+        onClick={() => onPick(i)}
+        title="open on stage"
+      >
+        <span className="t-meta">
+          <span className="t-who">
+            <span className="pid">{turn.player_id}</span>
+            {!hideRoles && turn.role === 'wolf' && <WolfEyes size={22} />}
+          </span>
+          <span className="t-model" title={turn.model_name}>
+            {shortModel(turn.model_name)}
+          </span>
+          <span className="t-vote">{turn.vote !== null ? `votes ${turn.vote}` : 'names no one'}</span>
           {score === null ? (
-            <span className="badge unscored">unscored</span>
+            <span className="t-unscored">not scored</span>
           ) : (
             <>
-              {lied && score.lie_kind && <span className="badge lie">{score.lie_kind.replace('_', ' ')}</span>}
+              {lied && score.lie_kind && <span className="t-kind">{LIE_KIND_WORDS[score.lie_kind] ?? score.lie_kind}</span>}
               <ConfidenceMeter score={score} />
             </>
           )}
-          {gone && <span className="badge gone">dead · {d.cause}</span>}
-        </div>
-        <div className="private">
-          <div className="lab">private — unobserved by other players</div>
-          <pre>
-            <Highlight text={turn.private} quote={lied ? score.quote : null} />
-          </pre>
-        </div>
-        <div className="public">
-          <div className="lab">public</div>
-          {turn.public === '' ? <div className="silence">chose silence</div> : <p>{turn.public}</p>}
-        </div>
-      </div>,
+        </span>
+        <span className="t-private">
+          <Highlight text={turn.private} quote={lied ? score.quote : null} />
+        </span>
+        <span className="t-public">{turn.public === '' ? <span className="silence">said nothing.</span> : turn.public}</span>
+      </button>,
     )
   })
 
-  if (game && focusIdx === rows.length - 1) {
-    out.push(
-      <div className="roundhead final" key="final">
-        <span className="rn">game over · {game.winner} win</span>
-        <Roster round={Number.MAX_SAFE_INTEGER} dead={dead} game={game} />
-      </div>,
-    )
-  }
-
   return (
-    <div className="split">
-      <div className="colhead" />
-      <div className="colhead private">
-        private
-        <span className="sub">scratchpad — unobserved by other players</span>
-      </div>
-      <div className="colhead public">
-        public
-        <span className="sub">spoken to the table</span>
+    <div className="transcript">
+      <div className="t-head">
+        <span />
+        <span className="t-h night">to itself</span>
+        <span className="t-h day">to the table</span>
       </div>
       {out}
     </div>

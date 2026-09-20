@@ -3,7 +3,7 @@
  * and research (scores, exploits) write to disk. Nothing here writes anything.
  *
  *   GET /data/index.json      -> IndexEntry[]  every game dir under runs/ and fixtures/live/
- *                                (game_id, dir, turn_count, has_game, has_scores, has_exploits, mtime),
+ *                                (game_id, dir, turn_count, has_game, has_scores, has_exploits, has_events, mtime),
  *                                then fixtures/games.json entries as fallbacks (dir: "fixtures").
  *                                Deduped by game_id: runs > fixtures/live > fixtures.
  *   GET /data/file/<relpath>  -> the file, if it is under runs/ or fixtures/. 404 otherwise.
@@ -27,6 +27,8 @@ export interface IndexEntry {
   has_game: boolean
   has_scores: boolean
   has_exploits: boolean
+  /** engine-local events.jsonl present (night chat, tallies, deaths). never true for fixtures/*.json games */
+  has_events: boolean
   /** newest mtime (ms since epoch) across the dir's json files */
   mtime: number
 }
@@ -111,6 +113,7 @@ export function buildIndex(): IndexEntry[] {
         has_game,
         has_scores: fs.existsSync(path.join(dirAbs, 'scores.json')),
         has_exploits: fs.existsSync(path.join(dirAbs, 'exploits.json')),
+        has_events: fs.existsSync(path.join(dirAbs, 'events.jsonl')),
         mtime: dirMtime(dirAbs),
       })
     }
@@ -151,6 +154,7 @@ export function buildIndex(): IndexEntry[] {
       has_game: Array.isArray(games) && games.some((g) => (g as { game_id?: string })?.game_id === game_id),
       has_scores: scoreIds.has(game_id),
       has_exploits: exploitIds.has(game_id),
+      has_events: false,
       mtime: Math.round(fxMtime),
     })
   }
