@@ -89,6 +89,67 @@ the rules is logged, never patched.
   every `designed: false` row with its cited evidence. Judge raw output goes to
   `research/results/raw/exploit_judgments.jsonl` (gitignored).
 
+## Local sims (`research.sims.local_sims`, current)
+
+Replaces the cut modal sims: the same games, run in parallel on our own machines.
+
+```bash
+python3 -m research.sims.local_sims run --models claude-haiku-4-5,claude-sonnet-5,claude-opus-4-8
+python3 -m research.sims.local_sims run --models claude-haiku-4-5 --total-games 30 --max-parallel 6 --budget-usd 12
+python3 -m research.sims.local_sims run --models scripted --total-games 4        # free, no API, smoke test
+python3 -m research.sims.local_sims plot                                          # most recent batch
+python3 -m research.sims.local_sims plot --batch 20260920-101710 --no-score
+```
+
+Every game is played by a `python3 -m engine.cli run --models <m> --games 1 --quiet --mongo off`
+subprocess. Nothing here reimplements game logic and nothing here writes `turns` or `games`:
+those writes stay inside lane A's code, so one-writer-per-collection holds even though lane B
+launches the runs. Lane B writes only `scores` (through `research.score`), the batch manifest
+and the plot.
+
+- `--models` is a **roster to compare**, not engine's per-seat `--models`. Each listed model gets
+  its own homogeneous games (one name on the engine's side fills all five seats), so a per-model
+  lie rate is attributable and so is the per-game token line. `--total-games` is spread
+  round-robin across the roster; the ids are checked against `engine/adapters/registry.py` before
+  anything launches, so a typo costs nothing.
+- Concurrency is a `ThreadPoolExecutor` bounded by `--max-parallel`: each unit of work is an
+  external subprocess, so threads are enough. Work is submitted a slot at a time, so the budget
+  check sees every finished game's real cost before the next one starts.
+- **Cost.** `CONTRACT.md`'s Turn has nine keys and no `cost_usd`, and `engine.records` rejects any
+  extra key, so there is no per-turn cost to sum. `engine.cli` does print a per-game
+  `tokens: input=… output=… requests=…` line; `run` parses it and prices it with
+  `research/score.py`'s `PRICES` — lane B's own table, already used by the scorer. Once spend
+  reaches `--budget-usd` no further game is launched (in-flight ones finish) and the total prints
+  either way. A model absent from `PRICES` counts as $0 and is reported as unpriced, never
+  silently dropped.
+- **`localsim-` game_id: not possible without an edit to lane A.** `engine.game` mints
+  `g-<date>-<hex6>` and `engine.cli` exposes no flag to override it. Instead the batch lands in
+  one directory, `runs/localsim-<batch_id>/`, and `research/results/sims/<batch_id>.json` records
+  every game_id, model, seed, token count, cost and exit status in it. Filterable by path and by
+  manifest, no schema change. If a `localsim-` prefix in mongo is actually wanted, that is a
+  `--game-id-prefix` flag on `engine.cli run` and it is lane A's call.
+- **Degraded games are excluded from the plot by default.** A rate-limited or rejected call becomes
+  a fallback turn, which reads as silence to the scorer and drags a lie rate toward zero for
+  reasons that have nothing to do with the model. Any game with `fallback_turns`, `adapter_errors`
+  or `parse_failures` in its `stats.json` is flagged and left out (`--include-degraded` to keep it);
+  the count is printed and stamped on the chart.
+- **A game where every turn is a fallback is not a game.** `engine.cli` still exits 0 and still
+  names a winner, so `run` checks `fallback_turns >= turns`, prints the underlying adapter error
+  from `events.jsonl` (deduplicated — the raw event carries a per-call `request_id`), and stops the
+  batch once the first three completed games all look like that. A dead key or an empty account
+  costs three games, not twenty-four.
+- `run` finishes by calling `python3 -m engine.cli validate <turns.json> <game.json>` on every game
+  it produced, and exits non-zero if any fails.
+- `plot` hands any unscored game in the batch to `research.score` first, then joins `scores` to
+  `turns` on `(game_id, round, player_id)` for `model_name`. It refuses to read anything outside
+  the batch directory, so the chart is always this batch's real games and never fixtures. A turn
+  the judge could not score (`lied false`, `confidence 0.0` — the scorer's sentinel) is excluded
+  rather than counted as honest. Output: `research/plots/lie_rate_by_model.png` plus
+  `research/results/sims/<batch_id>-lie-rates.json`.
+- The within-family plot (llama 8b vs 70b) is cut: budget, and runpod's GPU tier for 70b is unverified.
+
+Batch output lands under `runs/`, which is gitignored; the manifest and the plot are committed.
+
 ## Lie scorer, v1 (`research.judge`, OpenAI)
 
 ```bash
@@ -123,3 +184,4 @@ Token usage for every call goes to `research/results/raw/llm_usage.jsonl` (gitig
 
 - `openai` Python SDK (Apache-2.0): judge calls.
 - `python-dotenv` (BSD-3-Clause): loads `.env`.
+- `matplotlib` (Matplotlib License, BSD-compatible): the lie-rate chart. Full list in `research/citations.md`.
