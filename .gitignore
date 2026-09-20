@@ -9,5 +9,9 @@ node_modules/
 .DS_Store
 research/results/raw/
 
+# devin harness state (ledger, generated briefs/prompts); keep the dir itself
+devin/state/*
+!devin/state/.gitkeep
+
 # engine output (see engine/README.md); real games are frozen under fixtures/live/
 runs/
