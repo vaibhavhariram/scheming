@@ -8,17 +8,17 @@ keep it to one line per lane. delete old blocks, do not append a history.
 
 ---
 
-## sunday 09:00 — freeze pass (locks 11:00)
+## sunday ~10:00 — freeze (locks 11:00)
 
 ```
 A  engine/   frozen. do not touch the loop.
-B  research/ scoring every usable run (not de4498), then plot --runs-root
-C  ui/       default opens on a scored game; degraded badge; agent_error/fallback visible
-D  voice/    PLUME CREATED: [x]   backup video is a human task, due now
+B  research/ done — 21 games scored, plot committed, no more API spend
+C  ui/       scale tab (plot on screen) — last code change, then freeze
+D  voice/    PLUME CREATED: [x]   paste design/plume.md; backup video still human
 
-collision risk: feat/voice then feat/elastic only if 1–3 are done and it is before 10:15
-blocked: none on the key (JUDGE_MODEL=claude-haiku-4-5)
-cut so far: probe, deepgram, silent_win on stage, feat/compress, feat/adapter
+collision risk: none — do not merge feat/voice or feat/elastic
+blocked: backup video (human)
+cut so far: probe, deepgram, silent_win on stage, feat/compress, feat/adapter, feat/voice merge, feat/elastic
 ```
 
 ---

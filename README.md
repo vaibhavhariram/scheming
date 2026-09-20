@@ -253,9 +253,10 @@ collection. Four views, switchable with keyboard shortcuts:
 | **Transcript** | the full tape of a game, lie spikes annotated |
 | **Exploits** | the leaderboard, sorted `designed: false` first — the ones nobody anticipated are the punchline |
 | **Games** | the list of games available, live and fixture |
+| **Scale** | lie rate by model (closing slide). between-game comparison; every game is single-model |
 
 Keys: `space` play/pause, `← →` step one beat, `l` jump to the next scored lie, `f` follow the
-live game, `b` blind mode (statement first, scratchpad on `r`eveal), `h` hide roles, `s t e g`
+live game, `b` blind mode (statement first, scratchpad on `r`eveal), `h` hide roles, `s t e g p`
 switch views, `?` show the full key list.
 
 ---

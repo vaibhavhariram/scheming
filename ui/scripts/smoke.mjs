@@ -38,6 +38,14 @@ try {
     check(dead.turn_count > 0 && dead.spoken_turns === 0, 'de4498 is indexed as a dead game (spoken_turns 0)')
   }
   check((await fetch(`${base}/data/file/../CONTRACT.md`)).status === 404, 'path traversal outside runs/ and fixtures/ is 404')
+  check((await fetch(`${base}/data/file/research/plots/lie_rate_by_model.png`)).status === 404, 'research/ is not opened via /data/file/')
+  const plot = await fetch(`${base}/data/plot.json`)
+  check(plot.status === 200, 'plot.json is 200')
+  if (plot.ok) {
+    const pj = await plot.json()
+    check(Array.isArray(pj.rows) && pj.rows.length > 0 && pj.rows.every((r) => r.turns > 0), `plot.json has ${pj.rows?.length ?? 0} rows with non-zero n`)
+  }
+  check((await fetch(`${base}/data/plot.png`)).status === 200, 'plot.png is 200')
   check((await fetch(`${base}/data/file/fixtures/turns.json`, { method: 'POST' })).status === 405, 'writes are 405')
   const html = await (await fetch(`${base}/`)).text()
   check(html.includes('/src/main.tsx'), 'index.html serves the app')

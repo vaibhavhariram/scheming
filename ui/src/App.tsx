@@ -6,12 +6,13 @@ import { fetchIndex, joinRows, loadEvents, loadExploits, loadGame, loadGameMetas
 import type { EngineEvent, Exploit } from './data/types'
 import { Exploits } from './views/Exploits'
 import { Games } from './views/Games'
+import { Scale } from './views/Scale'
 import { SplitScreen } from './views/SplitScreen'
 import { Stage, type SeenMap } from './views/Stage'
 
 const POLL_MS = 1000
 
-type Tab = 'stage' | 'transcript' | 'exploits' | 'games'
+type Tab = 'stage' | 'transcript' | 'exploits' | 'games' | 'scale'
 
 /** Newest scored game, else newest with a spoken turn, else newest. Picker order is unchanged. */
 function defaultGameId(picker: IndexEntry[]): string | null {
@@ -37,7 +38,7 @@ const KEYS: [string, string][] = [
   ['b', 'blind mode: statement first, scratchpad on r'],
   ['r', 'reveal the scratchpad (blind mode)'],
   ['h', 'hide or show roles'],
-  ['s  t  e  g', 'stage, transcript, exploits, games'],
+  ['s  t  e  g  p', 'stage, transcript, exploits, games, scale'],
   ['?', 'this list'],
 ]
 
@@ -315,6 +316,10 @@ export default function App() {
         case 'G':
           setTab((t) => (t === 'games' ? 'stage' : 'games'))
           break
+        case 'p':
+        case 'P':
+          setTab((t) => (t === 'scale' ? 'stage' : 'scale'))
+          break
         case '?':
           setHelp((v) => !v)
           break
@@ -376,6 +381,7 @@ export default function App() {
               ['transcript', 'transcript', null],
               ['exploits', 'exploits', exploits ? undesignedAll : null],
               ['games', 'games', realGames],
+              ['scale', 'scale', null],
             ] as [Tab, string, number | null][]
           ).map(([t, label, count]) => (
             <button type="button" key={t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)} aria-current={tab === t ? 'page' : undefined}>
@@ -537,6 +543,7 @@ export default function App() {
           }}
         />
       )}
+      {tab === 'scale' && <Scale />}
 
       {help && (
         <div className="help" role="dialog" aria-label="keyboard shortcuts" onClick={() => setHelp(false)}>

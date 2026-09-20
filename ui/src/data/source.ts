@@ -4,6 +4,7 @@
  *   fetchIndex()           -> IndexEntry[]   every game dir in runs/ + fixtures/live/, then fixtures/*.json fallbacks
  *   loadGame(entry)        -> GameData       game.json (object or [object]), turns in ts order, scores or null
  *   loadExploits(entries)  -> ExploitsData   fixtures/exploits.json + every <dir>/exploits.json; anyFile=false when none exist
+ *   fetchPlot()            -> PlotData|null  research lie-rate rows from /data/plot.json (null if missing)
  *
  * Scores and exploits may be missing. Callers render without them. Nothing is computed here.
  */
@@ -42,10 +43,41 @@ export interface ExploitsData {
   anyFile: boolean
 }
 
+/** one row of research/results/sims/*-lie-rates.json — display only, no recompute */
+export interface PlotRow {
+  model: string
+  turns: number
+  lies: number
+  games: number
+  lie_rate: number
+}
+
+export interface PlotData {
+  batch_id: string
+  ts: string
+  include_degraded: boolean
+  excluded: {
+    degraded: number
+    unscored_game: number
+    unjudged_turns: number
+    failed: number
+    games_used: number
+  }
+  rows: PlotRow[]
+}
+
 export async function fetchIndex(): Promise<IndexEntry[]> {
   const res = await fetch(`${BASE}/index.json`, { cache: 'no-store' })
   if (!res.ok) throw new Error(`data index unavailable: ${res.status}`)
   return (await res.json()) as IndexEntry[]
+}
+
+/** null when research has not written the plot yet (404). */
+export async function fetchPlot(): Promise<PlotData | null> {
+  const res = await fetch(`${BASE}/plot.json`, { cache: 'no-store' })
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error(`plot.json unavailable: ${res.status}`)
+  return (await res.json()) as PlotData
 }
 
 async function fetchText(rel: string): Promise<string | null> {

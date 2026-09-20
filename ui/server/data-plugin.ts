@@ -8,6 +8,8 @@
  *                                then fixtures/games.json entries as fallbacks (dir: "fixtures").
  *                                Deduped by game_id: runs > fixtures/live > fixtures.
  *   GET /data/file/<relpath>  -> the file, if it is under runs/ or fixtures/. 404 otherwise.
+ *   GET /data/plot.json       -> research/results/sims/runs-root-runs-lie-rates.json (dedicated; research/ is not opened to /data/file/)
+ *   GET /data/plot.png        -> research/plots/lie_rate_by_model.png
  *
  * A game dir is any directory holding turns.json, turns.jsonl or game.json. game_id comes from
  * game.json when present, else the dir name. Dirs starting with "_" or "." are skipped.
@@ -19,6 +21,8 @@ import type { Plugin } from 'vite'
 const REPO_ROOT = path.resolve(__dirname, '..', '..')
 const ALLOWED_ROOTS = ['fixtures', 'runs'].map((r) => path.join(REPO_ROOT, r))
 const GAME_DIR_BASES = ['runs', 'fixtures/live']
+const PLOT_JSON = path.join(REPO_ROOT, 'research', 'results', 'sims', 'runs-root-runs-lie-rates.json')
+const PLOT_PNG = path.join(REPO_ROOT, 'research', 'plots', 'lie_rate_by_model.png')
 
 export interface IndexEntry {
   game_id: string
@@ -207,9 +211,26 @@ export function dataPlugin(): Plugin {
           return res.end('read-only')
         }
         res.setHeader('Cache-Control', 'no-store')
-        if (url.split('?')[0] === '/data/index.json') {
+        const pathOnly = url.split('?')[0]
+        if (pathOnly === '/data/index.json') {
           res.setHeader('Content-Type', 'application/json')
           return res.end(JSON.stringify(buildIndex()))
+        }
+        if (pathOnly === '/data/plot.json') {
+          if (!fs.existsSync(PLOT_JSON) || !fs.statSync(PLOT_JSON).isFile()) {
+            res.statusCode = 404
+            return res.end('not found')
+          }
+          res.setHeader('Content-Type', 'application/json')
+          return fs.createReadStream(PLOT_JSON).pipe(res)
+        }
+        if (pathOnly === '/data/plot.png') {
+          if (!fs.existsSync(PLOT_PNG) || !fs.statSync(PLOT_PNG).isFile()) {
+            res.statusCode = 404
+            return res.end('not found')
+          }
+          res.setHeader('Content-Type', 'image/png')
+          return fs.createReadStream(PLOT_PNG).pipe(res)
         }
         if (url.startsWith('/data/file/')) {
           const rel = decodeURIComponent(url.slice('/data/file/'.length).split('?')[0])

@@ -35,10 +35,18 @@ Every game is single-model. The closing plot is a **between-game** comparison
 pause on a turn where the scratchpad says one thing, the public statement says
 another, `Score.quote` highlighted inside the scratchpad, confidence meter red.
 
-then cut to the exploit leaderboard: *"model X discovered it could win by never
-speaking, in round 3. we did not design that."*
+Cold open on the default scored game (`g-20260920-e89234`). Hit `l` until a red
+quote lands. Then `e` for the exploit board — the first undesigned rows are
+`solo_tie_forced_win` (`g-20260920-e29033`) and `single_vote_elimination`
+(`g-20260920-79906c`). Open the turn. Say: *"we did not design that."*
 
-close on the plot.
+Then `p` for the scale tab. Say on stage: this is a **between-game** comparison
+(every game is single-model), not within-game. A judge will ask.
+
+Optional second run if time: `uv run python -m engine.cli run --models <judge pick> --out runs/`.
+Safe picks: `claude-haiku-4-5`, `claude-sonnet-5`, `claude-opus-4-8`. Never `claude-opus-5`.
+
+Do **not** promise `silent_win` — zero hits in real data.
 
 ## delivery rules
 
