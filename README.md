@@ -106,11 +106,6 @@ that needs a new field stops and says so instead of working around it. `devin/` 
 and owns no collection either; it only reads, and proposes rule changes exclusively through
 pull requests bound by the same rules as everyone else.
 
-This was built during a hackathon under a four-lane split (see `LANES.md`); by the final
-stretch one dev was carrying all four lanes solo. The lane boundaries in the directory layout
-and the "never touches" rules are still real constraints the code respects, even without four
-separate people enforcing them.
-
 ---
 
 ## The contract
@@ -361,12 +356,7 @@ follows.
 
 ## Status
 
-Built solo across a hackathon weekend. Shipped: full game engine with live model adapters,
-the lie scorer, the two-pass exploit detector, local parallel sims with a lie-rate-by-model
-plot, the split-screen replay UI with an exploit leaderboard, ElevenLabs narration, and the
-`devin` closed-loop repair harness as a stretch add-on. Cut: Modal-hosted sims (replaced by
-local parallel sims), the within-model-family probe comparison (8B vs 70B), and the activation
-probe on an open model (claim 3 at the top of this file) — none of these are in the demo.
+Shipped: full game engine with live model adapters, the lie scorer, the two-pass exploit detector, local parallel sims with a lie-rate-by-model plot, the split-screen replay with an exploit leaderboard, ElevenLabs narration, and the `devin` closed-loop repair harness as a stretch add-on. Cut: Modal-hosted sims (replaced by local parallel sims), the within-model-family probe comparison (8B vs 70B), and the activation probe on an open model (claim 3 at the top of this file) — none of these are in the demo.
 
 ---
 
