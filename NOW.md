@@ -8,17 +8,17 @@ keep it to one line per lane. delete old blocks, do not append a history.
 
 ---
 
-## hour 5 — 16:30
+## sunday 09:00 — freeze pass (locks 11:00)
 
 ```
-A  engine/   live run + traps from design/rules.md, then ui alongside C
-B  research/ scorer on real turns → exploit detector → cost rollup
-C  ui/       split screen on real data (reassign if not typing by 16:40)
-D  voice/    PLUME CREATED: [ ]   then cold-open pick from real game, slides
+A  engine/   frozen. do not touch the loop.
+B  research/ scoring every usable run (not de4498), then plot --runs-root
+C  ui/       default opens on a scored game; degraded badge; agent_error/fallback visible
+D  voice/    PLUME CREATED: [x]   backup video is a human task, due now
 
-collision risk: A entering ui/ — only after C formally reassigned, never both
-blocked: everything downstream of the api key
-cut so far: probe, deepgram
+collision risk: feat/voice then feat/elastic only if 1–3 are done and it is before 10:15
+blocked: none on the key (JUDGE_MODEL=claude-haiku-4-5)
+cut so far: probe, deepgram, silent_win on stage, feat/compress, feat/adapter
 ```
 
 ---

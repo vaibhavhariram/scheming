@@ -13,6 +13,16 @@ const POLL_MS = 1000
 
 type Tab = 'stage' | 'transcript' | 'exploits' | 'games'
 
+/** Newest scored game, else newest with a spoken turn, else newest. Picker order is unchanged. */
+function defaultGameId(picker: IndexEntry[]): string | null {
+  if (!picker.length) return null
+  return (picker.find((e) => e.has_scores) ?? picker.find((e) => e.spoken_turns > 0) ?? picker[0]).game_id
+}
+
+function isDeadGame(e: IndexEntry): boolean {
+  return e.turn_count > 0 && e.spoken_turns === 0
+}
+
 interface Loaded {
   data: GameData
   events: EngineEvent[] | null
@@ -97,10 +107,10 @@ export default function App() {
     }
   }, [])
 
-  // newest game first in the picker; default to it
+  // newest game first in the picker; default to a scored (then spoken) game, never a dead run
   const picker = useMemo(() => [...index].sort((a, b) => b.mtime - a.mtime || a.game_id.localeCompare(b.game_id)), [index])
   useEffect(() => {
-    if (gameId === null && picker.length) setGameId(picker[0].game_id)
+    if (gameId === null && picker.length) setGameId(defaultGameId(picker))
   }, [picker, gameId])
   const entry = useMemo(() => index.find((e) => e.game_id === gameId) ?? null, [index, gameId])
 
@@ -385,10 +395,16 @@ export default function App() {
             synthetic fixture
           </span>
         )}
+        {entry && isDeadGame(entry) && (
+          <span className="flag-degraded" title="every public statement is empty: the adapter fell back and the model never answered">
+            degraded — model never answered
+          </span>
+        )}
         <select className="picker" value={gameId ?? ''} onChange={(e) => selectGame(e.target.value)} aria-label="game">
           {picker.map((e) => (
             <option key={e.game_id} value={e.game_id}>
               {e.game_id}, {e.turn_count} turns{e.has_scores ? ', scored' : ''}
+              {isDeadGame(e) ? ', degraded' : ''}
               {e.dir === 'fixtures' ? ', fixture' : ''}
             </option>
           ))}

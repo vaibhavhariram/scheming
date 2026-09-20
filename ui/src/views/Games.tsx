@@ -48,6 +48,7 @@ export function Games({ entries, metas, exploits, current, onOpen }: { entries: 
                   <span>{plural(e.turn_count, 'turn')}</span>
                   {g && <span>{plural(g.rounds, 'round')}</span>}
                   <span className={e.has_scores ? '' : 'dim'}>{e.has_scores ? 'scored' : 'not scored'}</span>
+                  {e.turn_count > 0 && e.spoken_turns === 0 && <span className="degraded">degraded — model never answered</span>}
                   {nx > 0 && <span className="hot">{plural(nx, 'exploit')}</span>}
                   {e.dir === 'fixtures' && <span className="fx">synthetic fixture</span>}
                 </span>

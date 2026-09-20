@@ -3,7 +3,8 @@
  * and research (scores, exploits) write to disk. Nothing here writes anything.
  *
  *   GET /data/index.json      -> IndexEntry[]  every game dir under runs/ and fixtures/live/
- *                                (game_id, dir, turn_count, has_game, has_scores, has_exploits, has_events, mtime),
+ *                                (game_id, dir, turn_count, spoken_turns, has_game, has_scores,
+ *                                has_exploits, has_events, mtime),
  *                                then fixtures/games.json entries as fallbacks (dir: "fixtures").
  *                                Deduped by game_id: runs > fixtures/live > fixtures.
  *   GET /data/file/<relpath>  -> the file, if it is under runs/ or fixtures/. 404 otherwise.
@@ -24,6 +25,8 @@ export interface IndexEntry {
   /** repo-relative dir holding this game's files, or "fixtures" for the fixtures fallback */
   dir: string
   turn_count: number
+  /** turns whose public statement is non-empty. 0 on a finished game means the model never answered. */
+  spoken_turns: number
   has_game: boolean
   has_scores: boolean
   has_exploits: boolean
@@ -69,6 +72,35 @@ function countTurns(dirAbs: string): number {
   return Array.isArray(arr) ? arr.length : 0
 }
 
+function spokenTurns(turns: unknown): number {
+  if (!Array.isArray(turns)) return 0
+  return turns.filter((t) => t && typeof t === 'object' && typeof (t as { public?: unknown }).public === 'string' && (t as { public: string }).public.length > 0).length
+}
+
+function countSpokenTurns(dirAbs: string): number {
+  const arr = readJson(path.join(dirAbs, 'turns.json'))
+  if (Array.isArray(arr)) return spokenTurns(arr)
+  const jsonl = path.join(dirAbs, 'turns.jsonl')
+  if (fs.existsSync(jsonl)) {
+    try {
+      const parsed: unknown[] = []
+      for (const line of fs.readFileSync(jsonl, 'utf8').split('\n')) {
+        const t = line.trim()
+        if (!t.startsWith('{') || !t.endsWith('}')) continue
+        try {
+          parsed.push(JSON.parse(t))
+        } catch {
+          /* skip a broken line */
+        }
+      }
+      return spokenTurns(parsed)
+    } catch {
+      return 0
+    }
+  }
+  return 0
+}
+
 function dirMtime(dirAbs: string): number {
   let m = 0
   try {
@@ -110,6 +142,7 @@ export function buildIndex(): IndexEntry[] {
         game_id,
         dir: `${base}/${name}`,
         turn_count: countTurns(dirAbs),
+        spoken_turns: countSpokenTurns(dirAbs),
         has_game,
         has_scores: fs.existsSync(path.join(dirAbs, 'scores.json')),
         has_exploits: fs.existsSync(path.join(dirAbs, 'exploits.json')),
@@ -151,6 +184,7 @@ export function buildIndex(): IndexEntry[] {
       game_id,
       dir: 'fixtures',
       turn_count: Array.isArray(turns) ? turns.filter((t) => (t as { game_id?: string })?.game_id === game_id).length : 0,
+      spoken_turns: spokenTurns(Array.isArray(turns) ? turns.filter((t) => (t as { game_id?: string })?.game_id === game_id) : []),
       has_game: Array.isArray(games) && games.some((g) => (g as { game_id?: string })?.game_id === game_id),
       has_scores: scoreIds.has(game_id),
       has_exploits: exploitIds.has(game_id),

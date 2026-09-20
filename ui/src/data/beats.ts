@@ -91,6 +91,10 @@ export function buildBeats(rows: Row[], events: EngineEvent[] | null, game: Game
           ended = true
           beats.push({ kind: 'end', key: 'end', round: ev.round, winner: ev.winner, endReason: ev.end_reason ?? null })
           break
+        case 'agent_error':
+        case 'fallback':
+          // loaded so a dead run is visible in the data, not rendered as their own beat
+          break
         default:
           break
       }

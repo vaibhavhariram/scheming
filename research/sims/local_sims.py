@@ -2,6 +2,7 @@
 
     python3 -m research.sims.local_sims run --models claude-haiku-4-5,claude-sonnet-5
     python3 -m research.sims.local_sims plot
+    python3 -m research.sims.local_sims plot --runs-root runs/ --no-score
 
 Replaces the cut modal sims. Nothing here reimplements game logic and nothing here
 writes `turns` or `games`: every game is played by a `python3 -m engine.cli run`
@@ -456,12 +457,88 @@ def load_manifest(batch: str | None) -> dict:
             candidates = sorted(p for p in SIMS_DIR.glob("*.json") if p.name != "latest.json")
             if not candidates:
                 raise SystemExit(f"plot: no batch manifest in {SIMS_DIR.relative_to(REPO_ROOT)}; "
-                                 "run `local_sims run` first")
+                                 "run `local_sims run` first, or `plot --runs-root runs/`")
             batch = candidates[-1].stem
     path = SIMS_DIR / f"{batch}.json"
     if not path.is_file():
         raise SystemExit(f"plot: no manifest {path.relative_to(REPO_ROOT)}")
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _flat_stats(raw: object) -> dict:
+    """stats.json is `{model: {fallback_turns: n, ...}}`. GameOutcome.degraded reads a flat
+    dict the way engine.cli prints it, so sum the per-model buckets."""
+    if not isinstance(raw, dict) or not raw:
+        return {}
+    if all(isinstance(v, dict) for v in raw.values()):
+        flat: dict = {}
+        for bucket in raw.values():
+            for k, v in bucket.items():
+                if isinstance(v, (int, float)):
+                    flat[k] = flat.get(k, 0) + v
+        return flat
+    return raw
+
+
+def manifest_from_runs_root(root: Path) -> dict:
+    """Synthesize an in-memory plot manifest from games already on disk. No batch from `run`.
+
+    One child directory per game. `model` is game.json `models[0]` (every real game is
+    homogeneous). `degraded` uses the same fallback_turns / adapter_errors / parse_failures
+    check as GameOutcome.degraded. collect_rates and draw_plot then run unchanged.
+    """
+    root = root.resolve()
+    games: list[dict] = []
+    for d in sorted(p for p in root.iterdir() if p.is_dir() and not p.name.startswith(("_", "."))):
+        game_path, turns_path, stats_path = d / "game.json", d / "turns.json", d / "stats.json"
+        if not game_path.is_file() or not turns_path.is_file():
+            continue
+        try:
+            g = json.loads(game_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if isinstance(g, list):
+            g = g[0] if g else {}
+        if not isinstance(g, dict):
+            continue
+        models = g.get("models") or []
+        model = models[0] if models else "unknown"
+        stats: dict = {}
+        if stats_path.is_file():
+            try:
+                stats = _flat_stats(json.loads(stats_path.read_text(encoding="utf-8")))
+            except (OSError, json.JSONDecodeError):
+                stats = {}
+        n_turns = 0
+        try:
+            t = json.loads(turns_path.read_text(encoding="utf-8"))
+            n_turns = len(t) if isinstance(t, list) else 1
+        except (OSError, json.JSONDecodeError):
+            pass
+        degraded = bool(stats.get("fallback_turns") or stats.get("adapter_errors")
+                        or stats.get("parse_failures"))
+        games.append({
+            "index": len(games), "model": model, "game_id": g.get("game_id") or d.name,
+            "run_dir": str(d), "winner": g.get("winner"), "rounds": g.get("rounds"),
+            "turns": n_turns, "stats": stats, "degraded": degraded, "returncode": 0,
+        })
+    if not games:
+        raise SystemExit(f"plot: no game dirs with game.json + turns.json under {root}")
+    rel = str(root.relative_to(REPO_ROOT)) if root.is_relative_to(REPO_ROOT) else str(root)
+    return {
+        "batch_id": f"runs-root-{root.name}",
+        "ts": _now(),
+        "out_dir": rel,
+        "models": sorted({g["model"] for g in games}),
+        "requested_games": len(games),
+        "launched": len(games),
+        "completed": len(games),
+        "failed": 0,
+        "degraded": sum(1 for g in games if g["degraded"]),
+        "spent_usd": 0,
+        "from_runs_root": True,
+        "games": games,
+    }
 
 
 def score_missing(run_dirs: list[Path], concurrency: int, judge_budget: float) -> dict:
@@ -704,15 +781,25 @@ def cmd_run(args) -> int:
 
 
 def cmd_plot(args) -> int:
-    manifest = load_manifest(args.batch)
+    if args.runs_root:
+        root = Path(args.runs_root)
+        if not root.is_dir():
+            raise SystemExit(f"plot: --runs-root {root} is not a directory")
+        manifest = manifest_from_runs_root(root)
+        _log(f"plot: {len(manifest['games'])} game(s) under {root} "
+             f"({manifest['degraded']} degraded)")
+    else:
+        manifest = load_manifest(args.batch)
     run_dirs = [Path(g["run_dir"]) for g in manifest["games"]
                 if g.get("run_dir") and g.get("returncode") == 0
                 and (args.include_degraded or not g.get("degraded"))]
     if not run_dirs:
         raise SystemExit(f"plot: batch {manifest['batch_id']} has no usable game "
                          f"({manifest['failed']} failed, {manifest['degraded']} degraded)")
-    # guard the promise in the docstring: nothing outside this batch's own directory
-    out_dir = (REPO_ROOT / manifest["out_dir"]).resolve()
+    # guard: nothing outside this batch's own directory (for --runs-root, that directory is the root)
+    out_dir = Path(manifest["out_dir"])
+    if not out_dir.is_absolute():
+        out_dir = (REPO_ROOT / out_dir).resolve()
     for d in run_dirs:
         if not d.resolve().is_relative_to(out_dir):
             raise SystemExit(f"plot: {d} is outside batch dir {out_dir}; refusing to plot it")
@@ -738,6 +825,7 @@ def cmd_plot(args) -> int:
     draw_plot(rows, manifest, skipped, PLOT_PATH)
     _log("")
     _log(f"wrote {PLOT_PATH.relative_to(REPO_ROOT)}")
+    SIMS_DIR.mkdir(parents=True, exist_ok=True)
     summary_path = SIMS_DIR / f"{manifest['batch_id']}-lie-rates.json"
     summary_path.write_text(json.dumps({"batch_id": manifest["batch_id"], "ts": _now(),
                                         "include_degraded": args.include_degraded,
@@ -775,6 +863,10 @@ def main(argv: list[str] | None = None) -> int:
 
     pl = sub.add_parser("plot", help="score this batch if needed, then chart lie rate by model")
     pl.add_argument("--batch", default=None, help="batch id (default: the most recent)")
+    pl.add_argument("--runs-root", default=None,
+                    help="plot games already on disk under this directory (e.g. runs/) instead of a "
+                         "batch from `run`. Synthesizes the manifest in memory; collect_rates and "
+                         "draw_plot stay the same. Combine with --no-score when research.score already ran.")
     pl.add_argument("--no-score", action="store_true",
                     help="do not call research.score; plot only games that already have scores.json")
     pl.add_argument("--include-degraded", action="store_true",

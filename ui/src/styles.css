@@ -202,6 +202,15 @@ kbd {
   padding: 4px 11px;
   white-space: nowrap;
 }
+.flag-degraded {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--lie);
+  border: 1px dashed var(--lie);
+  border-radius: 999px;
+  padding: 4px 11px;
+  white-space: nowrap;
+}
 .status {
   display: inline-flex;
   align-items: center;
@@ -1477,6 +1486,9 @@ mark.quote {
 }
 .game-card .fx {
   color: var(--amber);
+}
+.game-card .degraded {
+  color: var(--lie);
 }
 .game-grid {
   list-style: none;

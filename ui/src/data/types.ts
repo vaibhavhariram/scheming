@@ -120,4 +120,15 @@ export interface EvGameEnd extends EvBase {
   rounds: number
   end_reason: string
 }
-export type EngineEvent = EvDayStart | EvTurn | EvDayResult | EvNightStart | EvNightTurn | EvNightResult | EvGameEnd
+export interface EvAgentError extends EvBase {
+  type: 'agent_error'
+  player_id: PlayerId
+  attempt?: number
+  error?: string
+}
+export interface EvFallback extends EvBase {
+  type: 'fallback'
+  player_id: PlayerId
+  error?: string
+}
+export type EngineEvent = EvDayStart | EvTurn | EvDayResult | EvNightStart | EvNightTurn | EvNightResult | EvGameEnd | EvAgentError | EvFallback

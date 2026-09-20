@@ -11,7 +11,8 @@ const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (
 try {
   const idx = await (await fetch(`${base}/data/index.json`)).json()
   check(Array.isArray(idx) && idx.length > 0, `index.json lists ${idx.length} games`)
-  for (const k of ['game_id', 'dir', 'turn_count', 'has_scores', 'has_exploits', 'has_events', 'mtime']) check(idx.every((e) => k in e), `every index entry has ${k}`)
+  for (const k of ['game_id', 'dir', 'turn_count', 'spoken_turns', 'has_scores', 'has_exploits', 'has_events', 'mtime']) check(idx.every((e) => k in e), `every index entry has ${k}`)
+  check(idx.every((e) => typeof e.spoken_turns === 'number' && e.spoken_turns <= e.turn_count), 'spoken_turns is a count and never exceeds turn_count')
   const fx = idx.filter((e) => e.dir === 'fixtures')
   check(fx.length === 2, `fixtures fallback split into 2 games (${fx.map((e) => e.game_id).join(', ')})`)
   check(fx.reduce((n, e) => n + e.turn_count, 0) === 20 && fx.every((e) => e.has_scores), 'fixture games: 20 turns between them, both scored')
@@ -31,6 +32,10 @@ try {
     check(sc.status === 404 || sc.ok, `scores.json for the run is ${sc.status === 404 ? 'absent (ok, renders unscored)' : 'present'}`)
   } else {
     console.log('skip runs/g-20260920-6f7625 not on disk (runs/ is gitignored)')
+  }
+  const dead = idx.find((e) => e.game_id === 'g-20260920-de4498')
+  if (dead) {
+    check(dead.turn_count > 0 && dead.spoken_turns === 0, 'de4498 is indexed as a dead game (spoken_turns 0)')
   }
   check((await fetch(`${base}/data/file/../CONTRACT.md`)).status === 404, 'path traversal outside runs/ and fixtures/ is 404')
   check((await fetch(`${base}/data/file/fixtures/turns.json`, { method: 'POST' })).status === 405, 'writes are 405')

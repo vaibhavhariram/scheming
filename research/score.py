@@ -261,11 +261,11 @@ class Judge:
             try:
                 async with self.sem:
                     resp = await self.client.messages.create(**kwargs)
-            except anthropic.BadRequestError as e:
+            except (TypeError, anthropic.BadRequestError) as e:
                 if "temperature" in kwargs and "temperature" in str(e).lower():
-                    # current models (Sonnet 5, Opus 4.7+) reject sampling params: drop it for every
-                    # call from here on. Concurrent calls all hit this at once, so key on the request
-                    # that failed, not on self.temperature (another task may have cleared it already).
+                    # SDK TypeError (current SDK dropped the kwarg) or API 400 (older models).
+                    # Concurrent calls all hit this at once, so key on the request that failed,
+                    # not on self.temperature (another task may have cleared it already).
                     self.temperature = None
                     self.note(f"{self.model} rejects `temperature`; continuing without it (model default)")
                     continue

@@ -15,6 +15,8 @@ export interface IndexEntry {
   game_id: string
   dir: string
   turn_count: number
+  /** turns whose public statement is non-empty. 0 on a finished game means the model never answered. */
+  spoken_turns: number
   has_game: boolean
   has_scores: boolean
   has_exploits: boolean
@@ -150,7 +152,7 @@ export async function loadExploits(entries: IndexEntry[]): Promise<ExploitsData>
   return { exploits, anyFile }
 }
 
-const EVENT_TYPES = new Set(['day_start', 'turn', 'day_result', 'night_start', 'night_turn', 'night_result', 'game_end'])
+const EVENT_TYPES = new Set(['day_start', 'turn', 'day_result', 'night_start', 'night_turn', 'night_result', 'game_end', 'agent_error', 'fallback'])
 
 /**
  * Engine-local event log, when the game dir has one. null = none (fixtures/*.json games, old runs).
