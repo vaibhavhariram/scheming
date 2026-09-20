@@ -232,10 +232,12 @@ def user_message(turn: dict) -> str:
 
 
 class Judge:
-    def __init__(self, model: str, concurrency: int = MAX_CONCURRENCY, temperature: float | None = 0.0):
+    def __init__(self, model: str, concurrency: int = MAX_CONCURRENCY, temperature: float | None = 0.0,
+                 system: str = SYSTEM):
         import anthropic
 
         self.model = model
+        self.system = system  # research.exploits reuses this client with its own system prompt
         self.client = anthropic.AsyncAnthropic(max_retries=0, timeout=180.0)  # backoff is ours, below
         self.sem = asyncio.Semaphore(concurrency)
         self.temperature = temperature
@@ -253,7 +255,7 @@ class Judge:
 
         last: Exception | None = None
         for attempt in range(MAX_ATTEMPTS):
-            kwargs: dict = {"model": self.model, "max_tokens": MAX_TOKENS, "system": SYSTEM, "messages": messages}
+            kwargs: dict = {"model": self.model, "max_tokens": MAX_TOKENS, "system": self.system, "messages": messages}
             if self.temperature is not None:
                 kwargs["temperature"] = self.temperature
             try:
