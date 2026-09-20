@@ -50,6 +50,8 @@ BATCH_PREFIX = "localsim-"
 DEFAULT_TOTAL_GAMES = 24
 DEFAULT_MAX_PARALLEL = 4
 DEFAULT_BUDGET_USD = 8.0
+# the judge is a second spend, roughly one call per turn, that --budget-usd never sees
+DEFAULT_JUDGE_BUDGET_USD = 4.0
 # below this many games a per-model lie rate is noise, not a measurement
 MIN_GAMES_PER_MODEL = 4
 
@@ -462,20 +464,67 @@ def load_manifest(batch: str | None) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def score_missing(run_dirs: list[Path], concurrency: int) -> None:
+def score_missing(run_dirs: list[Path], concurrency: int, judge_budget: float) -> dict:
     """Hand any unscored game in this batch to lane B's existing scorer. The plot must come
-    from this batch's real games; a game without scores is scored now, never substituted."""
+    from this batch's real games; a game without scores is scored now, never substituted.
+
+    The judge is a second, separate spend: roughly one call per turn, on top of whatever the
+    games themselves cost, and `run`'s --budget-usd never saw a cent of it. So games are scored
+    one at a time and `research.score`'s own per-game `judge_cost_usd` is accumulated between
+    them, and scoring stops when --judge-budget-usd is reached. Games left unscored are simply
+    absent from the chart, which is the honest outcome -- never a substituted number.
+    """
     todo = [d for d in run_dirs if not (d / "scores.json").is_file()]
+    ledger = {"scored": 0, "spent_usd": 0.0, "unpriced": 0, "stopped_for_budget": False,
+              "skipped": 0, "errors": 0}
     if not todo:
         _log(f"scorer: all {len(run_dirs)} game(s) already have scores.json")
-        return
-    _log(f"scorer: {len(todo)} of {len(run_dirs)} game(s) unscored, running research.score")
-    proc = subprocess.run([sys.executable, "-m", "research.score", *[str(d) for d in todo],
-                           "--concurrency", str(concurrency)],
-                          cwd=REPO_ROOT, text=True)
-    if proc.returncode != 0:
-        _log(f"scorer: research.score exited {proc.returncode}; games it refused to write have no "
-             "scores.json and are left out of the plot below")
+        return ledger
+    _log(f"scorer: {len(todo)} of {len(run_dirs)} game(s) unscored, judge budget ${judge_budget:.2f}")
+    for d in todo:
+        if ledger["spent_usd"] >= judge_budget:
+            ledger["stopped_for_budget"] = True
+            ledger["skipped"] += 1
+            continue
+        proc = subprocess.run([sys.executable, "-m", "research.score", str(d),
+                               "--concurrency", str(concurrency)],
+                              cwd=REPO_ROOT, capture_output=True, text=True)
+        for line in (proc.stderr or "").splitlines():
+            stripped = line.strip()
+            if stripped.startswith("{"):
+                try:
+                    summary = json.loads(stripped)
+                except json.JSONDecodeError:
+                    continue
+                cost = summary.get("judge_cost_usd")
+                if cost is None:
+                    ledger["unpriced"] += 1
+                else:
+                    ledger["spent_usd"] += float(cost)
+            elif stripped:
+                _log(f"    {stripped}")
+        if proc.returncode != 0:
+            ledger["errors"] += 1
+            _log(f"  FAILED {d.name}: research.score exited {proc.returncode}, no scores.json")
+            if ledger["scored"] == 0 and ledger["errors"] >= 2:
+                # a preflight failure (no JUDGE_MODEL, no key, unusable judge) is deterministic:
+                # the third game fails exactly like the first two. Stop and say why.
+                ledger["skipped"] += len(todo) - todo.index(d) - 1
+                _log("scorer: the first two games both failed before writing anything, and the cause "
+                     "is the same every time. Stopping rather than repeating it down the batch.")
+                break
+        else:
+            ledger["scored"] += 1
+            _log(f"  scored {d.name}: judge spend ${ledger['spent_usd']:.4f} of ${judge_budget:.2f}")
+    if ledger["stopped_for_budget"]:
+        _log(f"scorer: judge budget ${judge_budget:.2f} reached; {ledger['skipped']} game(s) left "
+             "unscored and excluded from the chart. Raise --judge-budget-usd to include them.")
+    if ledger["errors"]:
+        _log(f"scorer: {ledger['errors']} game(s) exited non-zero; a game research.score refused to "
+             "write has no scores.json and is left out of the plot below")
+    _log(f"scorer: judge spend ${ledger['spent_usd']:.4f} over {ledger['scored']} game(s)"
+         + (f", {ledger['unpriced']} unpriced" if ledger["unpriced"] else ""))
+    return ledger
 
 
 def collect_rates(manifest: dict, include_degraded: bool) -> tuple[list[dict], dict]:
@@ -633,6 +682,10 @@ def cmd_run(args) -> int:
     if unpriced:
         _log(f"warning: no price for {', '.join(unpriced)} in research.score.PRICES; "
              "their games count as $0 against --budget-usd and are reported as unpriced")
+    if any(m != "scripted" for m in models):
+        _log(f"note: --budget-usd ${args.budget_usd:.2f} caps GAMEPLAY spend for THIS invocation only. "
+             "It has no memory across batches, and it does not cover the judge -- `plot` calls "
+             "research.score about once per turn, capped separately by --judge-budget-usd.")
 
     manifest = run_batch(models, args.total_games, args.max_parallel, args.budget_usd,
                          Path(args.out), args.seed, args.max_rounds, args.win_rule, args.timeout)
@@ -663,8 +716,10 @@ def cmd_plot(args) -> int:
     for d in run_dirs:
         if not d.resolve().is_relative_to(out_dir):
             raise SystemExit(f"plot: {d} is outside batch dir {out_dir}; refusing to plot it")
+    judge = {"scored": 0, "spent_usd": 0.0, "stopped_for_budget": False, "skipped": 0, "errors": 0,
+             "unpriced": 0}
     if not args.no_score:
-        score_missing(run_dirs, args.concurrency)
+        judge = score_missing(run_dirs, args.concurrency, args.judge_budget_usd)
     else:
         _log("plot: --no-score, using only games that already have scores.json")
 
@@ -686,9 +741,11 @@ def cmd_plot(args) -> int:
     summary_path = SIMS_DIR / f"{manifest['batch_id']}-lie-rates.json"
     summary_path.write_text(json.dumps({"batch_id": manifest["batch_id"], "ts": _now(),
                                         "include_degraded": args.include_degraded,
-                                        "excluded": skipped, "rows": rows}, indent=2) + "\n",
-                            encoding="utf-8")
+                                        "excluded": skipped, "judge": judge, "rows": rows},
+                                       indent=2) + "\n", encoding="utf-8")
     _log(f"wrote {summary_path.relative_to(REPO_ROOT)}")
+    _log(f"spend on this batch: games ${manifest.get('spent_usd', 0):.2f} (from `run`) + "
+         f"judge ${judge['spent_usd']:.2f} (here) = ${manifest.get('spent_usd', 0) + judge['spent_usd']:.2f}")
     return 0
 
 
@@ -724,6 +781,10 @@ def main(argv: list[str] | None = None) -> int:
                     help="keep games with fallback/adapter/parse failures (excluded by default: their "
                          "turns read as silence and drag every rate down)")
     pl.add_argument("--concurrency", type=int, default=8, help="judge concurrency passed to research.score")
+    pl.add_argument("--judge-budget-usd", type=float, default=DEFAULT_JUDGE_BUDGET_USD,
+                    help=f"cap on judge spend here (default {DEFAULT_JUDGE_BUDGET_USD}). This is a "
+                         "SEPARATE spend from `run --budget-usd`: the judge fires about once per turn "
+                         "on every game kept. Games past the cap stay unscored and are left off the chart.")
     pl.set_defaults(func=cmd_plot)
 
     args = p.parse_args(argv)

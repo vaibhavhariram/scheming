@@ -99,6 +99,7 @@ python3 -m research.sims.local_sims run --models claude-haiku-4-5 --total-games 
 python3 -m research.sims.local_sims run --models scripted --total-games 4        # free, no API, smoke test
 python3 -m research.sims.local_sims plot                                          # most recent batch
 python3 -m research.sims.local_sims plot --batch 20260920-101710 --no-score
+python3 -m research.sims.local_sims plot --judge-budget-usd 1.50     # cap judge spend too
 ```
 
 Every game is played by a `python3 -m engine.cli run --models <m> --games 1 --quiet --mongo off`
@@ -140,6 +141,14 @@ and the plot.
   costs three games, not twenty-four.
 - `run` finishes by calling `python3 -m engine.cli validate <turns.json> <game.json>` on every game
   it produced, and exits non-zero if any fails.
+- **The judge is a second, separate spend and `run --budget-usd` never sees it.** `research.score`
+  makes roughly one judge call per turn on every game kept, on top of what the games themselves
+  cost. `plot` therefore scores one game at a time, accumulates the scorer's own per-game
+  `judge_cost_usd`, and stops at `--judge-budget-usd` (default 4.0); games past the cap stay
+  unscored and are simply absent from the chart, never substituted. If the first two games both
+  fail before writing anything — no `JUDGE_MODEL`, no key, unusable judge — it stops rather than
+  repeating a deterministic failure down the batch. `plot` ends by printing games + judge spend
+  for the batch. Both budgets are **per invocation**: they have no memory across runs.
 - `plot` hands any unscored game in the batch to `research.score` first, then joins `scores` to
   `turns` on `(game_id, round, player_id)` for `model_name`. It refuses to read anything outside
   the batch directory, so the chart is always this batch's real games and never fixtures. A turn
