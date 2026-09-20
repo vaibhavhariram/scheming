@@ -30,3 +30,10 @@ none. the acceptance test passed against the spec as written; no frozen file nee
 not a blocker for this task, already tracked in `engine/tasks/blocked.md`: `MONGODB_URI` is absent
 from `.env`, so the live mirror cannot be exercised here. tests inject a fake database by design;
 the CLI flag that turns the sink on comes in task `wire`.
+
+### traps
+
+# traps — blocked
+
+nothing blocked. every test in `engine/tests/test_traps.py` passed against the frozen engine as
+it stands; no gap needed closing and none was closed.

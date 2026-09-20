@@ -32,3 +32,11 @@ nothing was added with `uv add`; `pyproject.toml` and `uv.lock` are unchanged by
 | pymongo | Apache-2.0 | https://github.com/mongodb/mongo-python-driver | already declared in `pyproject.toml` (`pymongo>=4.10`); resolved to 4.18.1 by the existing `uv.lock` |
 
 nothing else added. `pyproject.toml` and `uv.lock` are unchanged by this task.
+
+### traps
+
+# traps — dependencies
+
+no new dependencies. `engine/traps.py` uses only the standard library (`dataclasses`); the
+acceptance test uses `pytest`, already cited in `engine/README.md`. `pyproject.toml` and `uv.lock`
+are untouched.
