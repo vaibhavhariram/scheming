@@ -21,7 +21,7 @@ whole memory of the orchestrator. `engine/tasks/blocked.md` collects everything 
 | adapters | `engine/adapters/**` | — | landed | 65ef71f |
 | mongo | `engine/mongo_sink.py` | — | landed | fc76ca1 |
 | traps | `engine/traps.py`, `engine/EXPLOITS_NOTICED.md` | — | landed | 6d93f8a |
-| wire | `engine/cli.py`, `engine/README.md`, `engine/deps.md` | adapters, mongo | launching 20:06 (in-session) | |
+| wire | `engine/cli.py`, `engine/README.md`, `engine/deps.md` | adapters, mongo | landed | 8ecc014 |
 
 states: queued | running (pass n) | gate-pass | landed | relaunched | failed
 
@@ -86,3 +86,5 @@ liveness: `pgrep -fl "loop.sh <t>"`. logs: `tail -f ~/scheming-logs/<t>.jsonl`, 
 - 20:04 traps landed 6d93f8a. builder noted three engine-side 'unplanned' observations in
   engine/EXPLOITS_NOTICED.md (whole-table none day, inline VOTE fallback leaving a dangling clause, retry
   rewriting both fields so the discarded scratchpad lives only in events.jsonl). not patched, by design.
+- 20:13 wire landed 8ecc014. all four tasks landed before the 21:00 freeze; bare `pytest engine` on main
+  is green again. tick job deleted. remaining items are human-only (blocked.md).
