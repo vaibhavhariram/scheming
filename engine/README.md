@@ -11,6 +11,9 @@ python3 -m pytest engine/tests -q                                   # no network
 python3 -m engine.cli run --seed 1 --out runs/                       # scripted agents
 python3 -m engine.cli run --models claude-sonnet-5 --out runs/       # live, needs ANTHROPIC_API_KEY
 python3 -m engine.cli run --wolf-model claude-sonnet-5 --villager-model claude-haiku-4-5 --games 20 --out runs/   # by role, for sims
+python3 -m engine.cli run --config players.json --out runs/          # one model id per seat, see "Per-player models"
+python3 -m engine.cli run --models meta-llama/Llama-3.1-8B-Instruct --out runs/   # open model on runpod, needs RUNPOD_ENDPOINT_URL + RUNPOD_API_KEY
+python3 -m engine.cli run --seed 1 --mongo on --out runs/            # also mirror turns/games to mongo, needs MONGODB_URI
 python3 -m engine.cli validate fixtures/turns.json fixtures/games.json
 python3 -m engine.cli validate fixtures/turns.json research/out/scores.json research/out/exploits.json
 ```
@@ -26,7 +29,8 @@ Exit code 0 = valid, 1 = the first violation is printed.
 
 Run from the repo root with python 3.13 (pinned in the root `CLAUDE.md`). `run` loads a
 repo-root `.env` (gitignored) into the environment for any variable not already set, so
-`ANTHROPIC_API_KEY=...` in `.env` is enough for a live game.
+`ANTHROPIC_API_KEY=...` in `.env` is enough for a live Claude game. The full list of variables
+is under "Environment" below.
 
 `runs/<game_id>/` contains `turns.json` (array, same shape as `fixtures/turns.json`),
 `turns.jsonl` (appended per turn, crash-safe), `game.json`, `events.jsonl` (every prompt,
@@ -34,6 +38,71 @@ raw reply, parse status, vote status, night chat with the wolves' scratchpads, t
 `stats.json` (per model: `calls`, `turns`, `retries`, `parse_failures`, `fallback_turns`,
 `adapter_errors`, `vote_missing`, `vote_invalid`, `kill_invalid`). Only `turns` and
 `games` are contract collections; the rest is engine-local.
+
+## Model ids
+
+`--models`, `--config`, `--wolf-model` and `--villager-model` all take the same ids, resolved
+by `engine/adapters/registry.py`:
+
+| id | adapter | needs |
+|---|---|---|
+| `scripted` | `ScriptedAgent` in `engine/agents.py`: deterministic, no network | nothing |
+| `claude-*` (e.g. `claude-sonnet-5`, `claude-haiku-4-5`, `claude-opus-4-8`) | `engine/adapters/anthropic_adapter.py`, Anthropic Messages API | `ANTHROPIC_API_KEY` |
+| hugging-face style `org/model` (e.g. `meta-llama/Llama-3.1-8B-Instruct`) | `engine/adapters/openai_compat.py`: one `POST <RUNPOD_ENDPOINT_URL>/chat/completions` per turn against the open model served by vLLM / TGI on runpod (anything OpenAI-compatible works) | `RUNPOD_ENDPOINT_URL`, `RUNPOD_API_KEY` |
+
+Anything else is rejected before a game starts. Credentials are resolved up front as well
+(each live adapter's `preflight`): a missing key or endpoint is reported by variable name on
+stderr with exit 2, and no `runs/` directory is created. `claude-opus-5` (and Fable / Mythos
+ids) are refused by the registry, see "Live results".
+
+## Per-player models: `--config`
+
+```json
+{"players": {"p0": "claude-sonnet-5", "p1": "meta-llama/Llama-3.1-8B-Instruct",
+             "p2": "claude-haiku-4-5", "p3": "scripted", "p4": "claude-sonnet-5"}}
+```
+
+`python3 -m engine.cli run --config players.json` assigns one model id per seat; `Game.models`
+comes out aligned to `p0..p4` exactly as written. All five players are required, unknown keys
+are rejected, and a malformed or incomplete file is reported on stderr with exit 2 before
+anything is written. `--config` and `--models` are mutually exclusive (also exit 2).
+`--wolf-model` / `--villager-model` still override by role on top of either: roles are drawn
+before the agents are built, wolf seats get `--wolf-model`, villager seats `--villager-model`,
+and seats without an override keep their configured id.
+
+## Mongo mirror: `--mongo`
+
+The two contract collections, `turns` and `games`, can be mirrored to MongoDB in addition to
+`runs/<game_id>/` (`MongoSink` in `engine/mongo_sink.py`). `events.jsonl` and `stats.json` are
+engine-local and stay on disk only. The mirror never writes `scores` or `exploits`.
+
+| `--mongo` | behaviour |
+|---|---|
+| `auto` (default) | on when `MONGODB_URI` is set (after the `.env` load), otherwise off; one stdout line says which |
+| `on` | requires `MONGODB_URI`; when missing, stderr names it, exit 2, nothing is written |
+| `off` | never touches mongo: no client is built, no connection is attempted |
+
+When active, one `MongoSink.from_env()` is built per `run` invocation (not per game), its unique
+indexes are ensured once before the first game (`turns` on `(game_id, round, player_id)`,
+`games` on `game_id`), and every record is upserted under that key, so re-running the same
+game id is idempotent. Each record is validated against `CONTRACT.md` before the write.
+`MONGODB_DB` picks the database (default `scheming`, as in `.env.example`). The URI is never
+printed; a driver error (unreachable cluster, rejected credentials) is reported by exception
+type with any URI redacted, exit 2.
+
+## Environment
+
+All read from the process environment after `run` has loaded the repo-root `.env`
+(`.env.example` lists them). No value is ever printed.
+
+| variable | used by | notes |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | `claude-*` ids | Anthropic Messages API |
+| `RUNPOD_ENDPOINT_URL` | `org/model` ids | OpenAI-compatible base url of the deployment, e.g. `https://<pod>.proxy.runpod.net/v1`; `/chat/completions` is appended |
+| `RUNPOD_API_KEY` | `org/model` ids | sent as `Authorization: Bearer`; the runpod endpoint key, not the Anthropic one |
+| `MONGODB_URI` | `--mongo auto` / `on` | `mongodb://` or `mongodb+srv://` connection string |
+| `MONGODB_DB` | `--mongo auto` / `on` | database name, default `scheming` |
+| `SCHEMING_ALLOW_REFUSING_MODELS` | registry | `1` lets `claude-opus-5` / Fable / Mythos ids through (they refuse the prompt, see "Live results") |
 
 ## Live results (measured 2026-09-19, one key, medium effort)
 
@@ -97,6 +166,10 @@ It says nothing about anyone else reading it. See `engine/prompts.py`.
 
 - `pytest` (MIT) — tests only.
 - `anthropic` Python SDK (MIT) — `engine/adapters/anthropic_adapter.py`, live games only.
+- `httpx` (BSD-3-Clause) — `engine/adapters/openai_compat.py`, the HTTP client behind `org/model` ids; imported lazily, scripted games never load it.
+- `pymongo` (Apache-2.0) — `engine/mongo_sink.py`, the `--mongo` mirror.
+
+Name, license and url for each are listed in `engine/deps.md` (the submission list).
 
 The Anthropic adapter sends one non-streaming Messages request per turn with a JSON-schema
 output constraint for the two fields and `effort: medium` (omitted on Haiku). Thinking is
