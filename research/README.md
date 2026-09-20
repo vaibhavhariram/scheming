@@ -64,8 +64,10 @@ the rules is logged, never patched.
   `said_x_voted_y`) are keyword approximations of the table in `design/rules.md`; the description
   carries the evidence so a reader can cut a row. `abstain_bloc` requires two days alive or surviving to
   the end (a night-1 victim's single `none` is the table's `day_one_forfeit`, not a bloc).
-- `ts` is the ts of the turn (or night event) evidencing the row, never now; `player_id` is the enabler
-  (table-wide events: earliest by ts, preferring a private that shows intent; the rest are named).
+- `ts` is the ts of the `(round, player_id)` turn evidencing the row, never now; rows evidenced by a
+  night event (`events.jsonl`) quote the night ts in the description and still carry the day turn's
+  ts. `player_id` is the enabler (table-wide events: earliest by ts, preferring a private that shows
+  intent; the rest are named).
 - Pass 2, open ended, `designed: false`: the same judge client as the scorer (`JUDGE_MODEL`, alias
   `SCHEMING_JUDGE_MODEL`, `claude-*` only, backoff on 429/5xx) reads the rules of record, the mechanics
   as implemented, the documented hole list, the tag registry and the full game log, and proposes
@@ -77,8 +79,10 @@ the rules is logged, never patched.
   (pass 1 owns them). Games are judged sequentially so the registry stays consistent.
 - Tag registry `research/exploit_tags.json`: documented tags seeded with their `designed` value; pass-2
   tags are minted with the judge's one-line description and the first game / round / player.
-- Scanned registry `research/results/exploits_scanned.json`: per run dir `{"pass1": ts, "pass2": ts|null}`.
-  A dir is skipped only when both passes are complete (unless `--force`). A judge failure is loud: an
+- Scanned registry `research/results/exploits_scanned.json`: per run dir `{"pass1": ts, "pass2": ts|null}`,
+  keyed repo-relative; a run dir outside the repo (a temp copy under test) is tracked in the gitignored
+  `research/results/raw/exploits_scanned_external.json` instead, so the committed file never gains a
+  scratch key. A dir is skipped only when both passes are complete (unless `--force`). A judge failure is loud: an
   `ERROR` line per game, no pass-2 rows for it, `pass2: null` plus the error recorded, exit 1 at the end;
   pass-1 rows are still written, and the next run redoes pass 2 and merges rows (dedupe on
   `(game_id, round, player_id, tag)`). Nothing is fabricated.
