@@ -25,4 +25,12 @@ def make_agent(model_name: str) -> Agent:
         from .anthropic_adapter import AnthropicAgent
 
         return AnthropicAgent(model_name)
-    raise ValueError(f"no adapter for model {model_name!r} (use 'scripted' or a claude-* id)")
+    if "/" in model_name:
+        # hugging-face style id (org/model): the open model on runpod, behind an OpenAI-compatible
+        # endpoint (RUNPOD_ENDPOINT_URL / RUNPOD_API_KEY). Lazy import: scripted games never load httpx.
+        from .openai_compat import OpenAICompatAgent
+
+        return OpenAICompatAgent(model_name)
+    raise ValueError(
+        f"no adapter for model {model_name!r} (use 'scripted', a claude-* id, or an org/model id served on runpod)"
+    )
