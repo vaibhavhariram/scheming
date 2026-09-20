@@ -1,15 +1,14 @@
 /**
- * Types copied from CONTRACT.md. Nothing else. If a field is not here it is not in the
- * contract and the UI must not invent it.
- *
- * NOT in CONTRACT.md as of aecb31a, so deliberately absent: Turn.tokens_in, Turn.tokens_out,
- * Turn.cost_usd, Game.trust, Game.death_cause. Raise at standup; do not compute.
+ * Types from CONTRACT.md, plus the engine-emitted extras the split screen renders when present.
+ * Fields below marked `optional` are NOT in CONTRACT.md (frozen); real runs may omit them and the
+ * UI renders a "—" instead. Never computed here, never written anywhere.
  */
 export type PlayerId = 'p0' | 'p1' | 'p2' | 'p3' | 'p4'
 export const PLAYER_IDS: readonly PlayerId[] = ['p0', 'p1', 'p2', 'p3', 'p4']
 export type Role = 'wolf' | 'villager'
 export type Winner = 'wolves' | 'villagers'
 export type LieKind = 'deflect' | 'false_claim' | 'omit'
+export type DeathCause = 'vote' | 'night' | null
 
 export interface Turn {
   game_id: string
@@ -23,6 +22,10 @@ export interface Turn {
   public: string
   vote: PlayerId | null
   ts: string
+  /** optional: not in CONTRACT.md */
+  tokens_in?: number
+  tokens_out?: number
+  cost_usd?: number
 }
 
 export interface Score {
@@ -56,4 +59,8 @@ export interface Game {
   winner: Winner
   rounds: number
   ts: string
+  /** optional: not in CONTRACT.md */
+  trust?: unknown
+  /** optional: not in CONTRACT.md. design/rules.md: {player_id: "vote" | "night" | null} */
+  death_cause?: Partial<Record<PlayerId, DeathCause>>
 }

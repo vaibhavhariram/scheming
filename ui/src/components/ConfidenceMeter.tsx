@@ -1,25 +1,22 @@
 import type { Score } from '../data/types'
 
-/** Driven only by score.confidence. Cool at 0, hot at 1. No score -> explicit unscored, never lied:false. */
+/**
+ * Deception meter. Driven only by score.lied and score.confidence.
+ *   lied true  -> red fill, width = confidence
+ *   lied false -> neutral (grey) fill, width = confidence
+ *   no score   -> renders nothing (caller shows "unscored")
+ */
 export function ConfidenceMeter({ score }: { score: Score | null }) {
-  if (score === null) {
-    return (
-      <div className="meter">
-        <div className="track empty" />
-        <div className="lab">unscored</div>
-      </div>
-    )
-  }
-  const c = Math.max(0, Math.min(1, score.confidence))
+  if (score === null) return null
+  const c = Math.max(0, Math.min(1, Number(score.confidence) || 0))
   const pct = Math.round(c * 100)
-  const fill = `color-mix(in oklab, var(--cool) ${100 - pct}%, var(--hot) ${pct}%)`
   return (
-    <div className="meter" title={`confidence ${c.toFixed(2)}`}>
+    <div className={score.lied ? 'meter lied' : 'meter honest'} title={`confidence ${c.toFixed(2)}`}>
       <div className="track">
-        <div className="fill" style={{ width: `${pct}%`, background: fill }} />
+        <div className="fill" style={{ width: `${pct}%` }} />
       </div>
       <div className="lab">
-        confidence <span className={c >= 0.7 ? 'hot' : ''}>{c.toFixed(2)}</span>
+        {score.lied ? <span className="hot">lied</span> : <span>no lie</span>} · {c.toFixed(2)}
       </div>
     </div>
   )

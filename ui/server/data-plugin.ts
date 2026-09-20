@@ -1,27 +1,42 @@
 /**
- * Dev-server backend for src/data/source.ts. Read-only. Serves JSON that lane A (turns, games)
- * and lane B (scores, exploits) write to disk. Nothing here writes anything.
+ * Dev-server backend for src/data/source.ts. Read-only. Serves JSON that the engine (turns, games)
+ * and research (scores, exploits) write to disk. Nothing here writes anything.
  *
- *   GET /data/index.json          -> [{ dir, game, files }]  every game.json under fixtures/live,
- *                                    runs, plus fixtures/games.json (fallback). live > runs > fixtures.
- *                                    `files` lists the json/jsonl present in that dir.
- *   GET /data/file/<relpath>      -> the file, if it is under an allowed root.
+ *   GET /data/index.json      -> IndexEntry[]  every game dir under runs/ and fixtures/live/
+ *                                (game_id, dir, turn_count, has_game, has_scores, has_exploits, mtime),
+ *                                then fixtures/games.json entries as fallbacks (dir: "fixtures").
+ *                                Deduped by game_id: runs > fixtures/live > fixtures.
+ *   GET /data/file/<relpath>  -> the file, if it is under runs/ or fixtures/. 404 otherwise.
  *
- * A mongo backend replaces this plugin and source.ts's fetches; no component changes.
+ * A game dir is any directory holding turns.json, turns.jsonl or game.json. game_id comes from
+ * game.json when present, else the dir name. Dirs starting with "_" or "." are skipped.
  */
 import fs from 'node:fs'
 import path from 'node:path'
 import type { Plugin } from 'vite'
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..')
-const ALLOWED_ROOTS = ['fixtures', 'runs', 'research/results'].map((r) => path.join(REPO_ROOT, r))
+const ALLOWED_ROOTS = ['fixtures', 'runs'].map((r) => path.join(REPO_ROOT, r))
+const GAME_DIR_BASES = ['runs', 'fixtures/live']
+
+export interface IndexEntry {
+  game_id: string
+  /** repo-relative dir holding this game's files, or "fixtures" for the fixtures fallback */
+  dir: string
+  turn_count: number
+  has_game: boolean
+  has_scores: boolean
+  has_exploits: boolean
+  /** newest mtime (ms since epoch) across the dir's json files */
+  mtime: number
+}
 
 function safeResolve(rel: string): string | null {
   const abs = path.resolve(REPO_ROOT, rel)
   return ALLOWED_ROOTS.some((root) => abs === root || abs.startsWith(root + path.sep)) ? abs : null
 }
 
-function readJson(abs: string): unknown | null {
+function readJson(abs: string): unknown {
   try {
     return JSON.parse(fs.readFileSync(abs, 'utf8'))
   } catch {
@@ -29,39 +44,115 @@ function readJson(abs: string): unknown | null {
   }
 }
 
-function gameDirs(): string[] {
-  const out: string[] = []
-  for (const base of ['fixtures/live', 'runs']) {
-    const abs = path.join(REPO_ROOT, base)
-    if (!fs.existsSync(abs)) continue
-    for (const name of fs.readdirSync(abs).sort()) {
-      if (name.startsWith('_') || name.startsWith('.')) continue
-      if (fs.existsSync(path.join(abs, name, 'game.json'))) out.push(`${base}/${name}`)
-    }
-  }
-  return out
+/** game.json may be an object or a one-element array */
+function readGame(abs: string): { game_id?: string } | null {
+  const raw = readJson(abs)
+  const g = Array.isArray(raw) ? raw[0] : raw
+  return g && typeof g === 'object' ? (g as { game_id?: string }) : null
 }
 
-function buildIndex(): Array<{ dir: string; game: unknown; files: string[] }> {
-  const seen = new Set<string>()
-  const entries: Array<{ dir: string; game: unknown; files: string[] }> = []
-  for (const dir of gameDirs()) {
-    const abs = path.join(REPO_ROOT, dir)
-    const game = readJson(path.join(abs, 'game.json')) as { game_id?: string } | null
-    if (game?.game_id && !seen.has(game.game_id)) {
-      seen.add(game.game_id)
-      const files = fs.readdirSync(abs).filter((f) => f.endsWith('.json') || f.endsWith('.jsonl'))
-      entries.push({ dir, game, files })
+function countTurns(dirAbs: string): number {
+  const jsonl = path.join(dirAbs, 'turns.jsonl')
+  if (fs.existsSync(jsonl)) {
+    try {
+      return fs
+        .readFileSync(jsonl, 'utf8')
+        .split('\n')
+        .filter((l) => l.trim().startsWith('{') && l.trim().endsWith('}')).length
+    } catch {
+      /* fall through */
     }
   }
-  const fallback = readJson(path.join(REPO_ROOT, 'fixtures/games.json'))
-  if (Array.isArray(fallback)) {
-    for (const game of fallback as Array<{ game_id?: string }>) {
-      if (game?.game_id && !seen.has(game.game_id)) {
-        seen.add(game.game_id)
-        entries.push({ dir: 'fixtures', game, files: [] })
-      }
+  const arr = readJson(path.join(dirAbs, 'turns.json'))
+  return Array.isArray(arr) ? arr.length : 0
+}
+
+function dirMtime(dirAbs: string): number {
+  let m = 0
+  try {
+    m = fs.statSync(dirAbs).mtimeMs
+    for (const f of fs.readdirSync(dirAbs)) {
+      if (!f.endsWith('.json') && !f.endsWith('.jsonl')) continue
+      m = Math.max(m, fs.statSync(path.join(dirAbs, f)).mtimeMs)
     }
+  } catch {
+    /* unreadable dir: mtime 0 */
+  }
+  return Math.round(m)
+}
+
+function isGameDir(dirAbs: string): boolean {
+  return ['turns.json', 'turns.jsonl', 'game.json'].some((f) => fs.existsSync(path.join(dirAbs, f)))
+}
+
+export function buildIndex(): IndexEntry[] {
+  const seen = new Set<string>()
+  const entries: IndexEntry[] = []
+  for (const base of GAME_DIR_BASES) {
+    const baseAbs = path.join(REPO_ROOT, base)
+    if (!fs.existsSync(baseAbs)) continue
+    for (const name of fs.readdirSync(baseAbs).sort()) {
+      if (name.startsWith('_') || name.startsWith('.')) continue
+      const dirAbs = path.join(baseAbs, name)
+      try {
+        if (!fs.statSync(dirAbs).isDirectory() || !isGameDir(dirAbs)) continue
+      } catch {
+        continue
+      }
+      const has_game = fs.existsSync(path.join(dirAbs, 'game.json'))
+      const game = has_game ? readGame(path.join(dirAbs, 'game.json')) : null
+      const game_id = game?.game_id ?? name
+      if (seen.has(game_id)) continue
+      seen.add(game_id)
+      entries.push({
+        game_id,
+        dir: `${base}/${name}`,
+        turn_count: countTurns(dirAbs),
+        has_game,
+        has_scores: fs.existsSync(path.join(dirAbs, 'scores.json')),
+        has_exploits: fs.existsSync(path.join(dirAbs, 'exploits.json')),
+        mtime: dirMtime(dirAbs),
+      })
+    }
+  }
+  // fixtures/*.json: two games per file. split by game_id, list as fallback entries.
+  const fxDir = path.join(REPO_ROOT, 'fixtures')
+  const games = readJson(path.join(fxDir, 'games.json'))
+  const turns = readJson(path.join(fxDir, 'turns.json'))
+  const scores = readJson(path.join(fxDir, 'scores.json'))
+  const exploits = readJson(path.join(fxDir, 'exploits.json'))
+  const idsIn = (arr: unknown): Set<string> =>
+    new Set(Array.isArray(arr) ? arr.map((x) => (x as { game_id?: string })?.game_id ?? '') : [])
+  const scoreIds = idsIn(scores)
+  const exploitIds = idsIn(exploits)
+  const fxMtime = ['games.json', 'turns.json', 'scores.json', 'exploits.json'].reduce((m, f) => {
+    try {
+      return Math.max(m, fs.statSync(path.join(fxDir, f)).mtimeMs)
+    } catch {
+      return m
+    }
+  }, 0)
+  const fxGameIds = new Set<string>()
+  for (const g of Array.isArray(games) ? games : []) {
+    const id = (g as { game_id?: string })?.game_id
+    if (id) fxGameIds.add(id)
+  }
+  for (const t of Array.isArray(turns) ? turns : []) {
+    const id = (t as { game_id?: string })?.game_id
+    if (id) fxGameIds.add(id)
+  }
+  for (const game_id of Array.from(fxGameIds).sort()) {
+    if (seen.has(game_id)) continue
+    seen.add(game_id)
+    entries.push({
+      game_id,
+      dir: 'fixtures',
+      turn_count: Array.isArray(turns) ? turns.filter((t) => (t as { game_id?: string })?.game_id === game_id).length : 0,
+      has_game: Array.isArray(games) && games.some((g) => (g as { game_id?: string })?.game_id === game_id),
+      has_scores: scoreIds.has(game_id),
+      has_exploits: exploitIds.has(game_id),
+      mtime: Math.round(fxMtime),
+    })
   }
   return entries
 }
@@ -78,7 +169,7 @@ export function dataPlugin(): Plugin {
           return res.end('read-only')
         }
         res.setHeader('Cache-Control', 'no-store')
-        if (url === '/data/index.json') {
+        if (url.split('?')[0] === '/data/index.json') {
           res.setHeader('Content-Type', 'application/json')
           return res.end(JSON.stringify(buildIndex()))
         }
