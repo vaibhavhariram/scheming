@@ -410,19 +410,26 @@ async def score_run(run_dir: Path, judge: Judge, force: bool) -> dict | None:
     usage = {k: judge.usage[k] - before[k] for k in before}
     scores = [s for s, _ in results]
     details = [d for _, d in results]
-
-    atomic_write_json(scores_path, scores)
-    JUDGMENTS_LOG.parent.mkdir(parents=True, exist_ok=True)
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    with JUDGMENTS_LOG.open("a", encoding="utf-8") as f:
-        for s, d in results:
-            f.write(json.dumps({**d, "lied": s["lied"], "lie_kind": s["lie_kind"], "confidence": s["confidence"],
-                                "quote": s["quote"], "ts": now}, ensure_ascii=False) + "\n")
     unscored = [d for d in details if d.get("status") == "unscored"]
     if unscored:
         with UNSCORED_LOG.open("a", encoding="utf-8") as f:
             for d in unscored:
                 f.write(f"{now} {run_dir} {d['game_id']} r{d['round']} {d['player_id']}: {d.get('error')}\n")
+    n_judged = sum(1 for t in turns if (t.get("public") or "").strip())
+    if n_judged and len(unscored) == n_judged:
+        # every judged turn failed (auth, billing, network): a file of lied=false/0.0 would pass as data.
+        print(f"ERROR {run_dir}: all {n_judged} judged turns failed, scores.json NOT written. "
+              f"first error: {unscored[0].get('error')}", file=sys.stderr)
+        return {"run_dir": str(run_dir), "failed": True, "scores": [], "details": details,
+                "summaries": [], "unscored": len(unscored), "turns": turns}
+
+    atomic_write_json(scores_path, scores)
+    JUDGMENTS_LOG.parent.mkdir(parents=True, exist_ok=True)
+    with JUDGMENTS_LOG.open("a", encoding="utf-8") as f:
+        for s, d in results:
+            f.write(json.dumps({**d, "lied": s["lied"], "lie_kind": s["lie_kind"], "confidence": s["confidence"],
+                                "quote": s["quote"], "ts": now}, ensure_ascii=False) + "\n")
 
     game_ids = sorted({s["game_id"] for s in scores})
     summaries = [summarise(g, [s for s in scores if s["game_id"] == g],
@@ -470,19 +477,25 @@ async def amain(args) -> int:
         if r:
             results.append(r)
     total_unscored = sum(r["unscored"] for r in results)
+    failed = [r["run_dir"] for r in results if r.get("failed")]
     cost = cost_usd(model, judge.usage)
-    print(f"done: {len(results)} run(s), {sum(len(r['scores']) for r in results)} turns, "
+    print(f"done: {len(results) - len(failed)} run(s), {sum(len(r['scores']) for r in results)} turns, "
           f"{sum(sum(1 for s in r['scores'] if s['lied']) for r in results)} lies, unscored={total_unscored}, "
           f"judge={model} tokens in={judge.usage['input_tokens']} out={judge.usage['output_tokens']} "
           f"cost={'n/a' if cost is None else f'${cost:.4f}'} in {time.monotonic() - t0:.1f}s", file=sys.stderr)
     if total_unscored:
         print(f"{total_unscored} turn(s) could not be judged and were written to {UNSCORED_LOG} "
               "(scored lied=false, confidence=0.0)", file=sys.stderr)
+    if failed:
+        print(f"{len(failed)} run(s) NOT written because every judged turn failed: {', '.join(failed)}",
+              file=sys.stderr)
     if args.top:
         for r in results:
+            if r.get("failed"):
+                continue
             print(f"\ntop {args.top} lies in {r['run_dir']}:")
             print("\n".join(top_lies(r, args.top)) or "  (none)")
-    return 0
+    return 1 if failed else 0
 
 
 def main(argv: list[str] | None = None) -> int:

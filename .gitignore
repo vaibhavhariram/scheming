@@ -21,3 +21,4 @@ ops/dispatch/state.json
 
 # voice output (regenerate with python3 -m voice.synthesize); keep the demo cache local
 audio/
+research/unscored.log
